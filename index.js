@@ -1,10 +1,13 @@
 const { Transformer } = require("@parcel/plugin")
 const Handlebars  = require("handlebars");
+const inlinesvg = require("handlebars-helper-svg");
+Handlebars.registerHelper('svg', inlinesvg);
 
 const transformer = new Transformer({
   async transform({ asset }) {
     const content = await asset.getCode();
     const precompiled = Handlebars.precompile(content);
+
     asset.setCode(`
     import Handlebars from 'handlebars';
     const templateFunction = Handlebars.template(${precompiled});
