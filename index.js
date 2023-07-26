@@ -20,6 +20,7 @@ const config = Object.assign({}, {
 }, userConfig);
 
 
+
 const wax = handlebarsWax(handlebars)
     .helpers(handlebarsLayouts)
     .helpers(handlebarsHelpers)
