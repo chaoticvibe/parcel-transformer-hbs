@@ -8,6 +8,7 @@ const handlebarsHelpersPackage = require('handlebars-helpers');
 const { Transformer } = require('@parcel/plugin');
 
 const handlebarsHelpers = handlebarsHelpersPackage();
+
 const { loadUserConfig, parseSimpleLayout } = require('./utils');
 
 const userConfig = loadUserConfig();
