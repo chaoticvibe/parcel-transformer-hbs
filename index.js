@@ -2,9 +2,11 @@ const fs = require('fs')
 const path = require('path')
 const { Transformer } = require("@parcel/plugin")
 let Handlebars  = require("handlebars");
-let helpers = require('handlebars-helpers')({
-  handlebars: Handlebars
-});
+let helpers = require('handlebars-helpers')();
+
+for ( let h in helpers ) {
+  Handlebars.registerHelper( h, helpers[ h ] )
+}
 
 const transformer = new Transformer({
   async transform({ asset }) {
