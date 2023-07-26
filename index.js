@@ -1,62 +1,78 @@
 const fs = require('fs')
 const path = require('path')
-const { Transformer } = require("@parcel/plugin")
-let Handlebars  = require("handlebars");
-let helpers = require('handlebars-helpers')();
+const frontMatter = require('front-matter');
+const handlebars = require('handlebars');
+const handlebarsWax = require('handlebars-wax');
+const handlebarsLayouts = require('handlebars-layouts');
+const handlebarsHelpersPackage = require('handlebars-helpers');
+const { Transformer } = require('@parcel/plugin');
 
-for ( let h in helpers ) {
-  Handlebars.registerHelper( h, helpers[ h ] )
-}
+const handlebarsHelpers = handlebarsHelpersPackage();
+const { loadUserConfig, parseSimpleLayout } = require('./utils');
+
+const userConfig = loadUserConfig();
+const config = Object.assign({}, {
+    data: 'src/markup/data',
+    decorators: 'src/markup/decorators',
+    helpers: 'src/markup/helpers',
+    layouts: 'src/markup/layouts',
+    partials: 'src/markup/partials',
+}, userConfig);
+
+
+const wax = handlebarsWax(handlebars)
+    .helpers(handlebarsLayouts)
+    .helpers(handlebarsHelpers)
+    .helpers(`${config.helpers}/**/*.js`)
+    .data(`${config.data}/**/*.{json,js}`)
+    .decorators(`${config.decorators}/**/*.js`)
+    .partials(`${config.layouts}/**/*.{hbs,handlebars,js}`)
+    .partials(`${config.partials}/**/*.{hbs,handlebars,js}`);
 
 const transformer = new Transformer({
-  async transform({ asset }) {
+    async transform({ asset }) {
 
-    let content = await asset.getCode();
+        let code = await asset.getCode();
 
+        // INLINE svg assets
+        let regex = /<include src=(.*?)\/>/g;
+        let includes = code.match(regex);
+        let cache = {}
+        for (let match in includes) {
 
-    // INLINE svg assets
+            let file = includes[match]
 
-    let regex = /<include src=(.*?)\/>/g;
-    let includes = content.match( regex );
+            file = file.replace(/<include src=/g, "")
+                .replace(/\/>/g, "")
+                .replace(/"/g, "")
+                .replace(/'/g, "");
 
-    let cache = {}
+            // HACK this should be better but it works for me
+            file = path.join(__dirname, '..', '..', 'src', 'frontend', file)
 
-    for ( let match in includes ) {
+            let svg = (cache[file])
+                ? cache[file]
+                : fs.readFileSync(file, 'utf-8')
 
-      let file = includes[ match ]
+            cache[file] = (cache[file])
+                ? cache[file]
+                : svg
 
-      file = file.replace( /<include src=/g, "" )
-        .replace( /\/>/g, "" )
-        .replace( /"/g, "" )
-        .replace( /'/g, "" );
+            code = code.replace(includes[match], cache[file])
 
-      // HACK this should be better but it works for me
-      file = path.join( __dirname,  '..', '..', 'src', 'frontend', file )
-      
-      let svg = ( cache[ file ] )
-        ? cache[ file ]
-        : fs.readFileSync( file, 'utf-8' )
+        }
 
+        const frontmatter = frontMatter(code);
+        const content = parseSimpleLayout(frontmatter.body, config);
+        const data = Object.assign({}, frontmatter.attributes, { NODE_ENV: process.env.NODE_ENV });
+        const html = wax.compile(content)(data);
 
-      cache[ file ] = ( cache[ file ] )
-        ? cache[ file ]
-        : svg
+        asset.type = 'html';
+        asset.setCode(html);
 
-      content = content.replace( includes[ match ], cache[ file ] )
+        return [asset];
 
-    }
-
-
-    const precompiled = Handlebars.precompile(content);
-
-
-    asset.setCode(`
-    import Handlebars from 'handlebars/dist/handlebars.runtime';
-    const templateFunction = Handlebars.template(${precompiled});
-    export default templateFunction`)
-    asset.type = "js"
-    return [asset];
-  },
+    },
 });
 
 
