@@ -1,23 +1,26 @@
 {
-  "name": "parcel-transformer-hbs",
-  "version": "1.0.5",
-  "description": "transforms hbs files to template functions",
-  "main": "index.js",
-  "author": "Vadim Luzyanin",
-  "license": "ISC",
-  "engines": {
-    "parcel": "2.x"
-  },
-  "dependencies": {
-    "handlebars": "^4.7.7",
-    "handlebars-helpers": "^0.10.0",
-    "parcel": "^2.0.1"
-  },
-  "keywords": [
-    "parcel",
-    "hbs",
-    "handlebars",
-    "parcel handlebars plugin",
-    "parcel handlebars transform"
-  ]
+    "name": "parcel-transformer-hbs",
+    "version": "1.0.5",
+    "description": "transforms hbs files to template functions",
+    "main": "index.js",
+    "author": "Andrey Anikin - Fork Blake Rutledge",
+    "license": "ISC",
+    "engines": {
+        "parcel": "2.x"
+    },
+    "dependencies": {
+        "handlebars": "^4.7.7",
+        "handlebars-helpers": "^0.10.0",
+        "parcel": "^2.0.1",
+        "front-matter": "^2.3.0",
+        "handlebars-layouts": "^3.1.4",
+        "handlebars-wax": "^6.1.0"
+    },
+    "keywords": [
+        "parcel",
+        "hbs",
+        "handlebars",
+        "parcel handlebars plugin",
+        "parcel handlebars transform"
+    ]
 }
