@@ -67,10 +67,10 @@ const transformer = new Transformer({
         const frontmatter = frontMatter(code);
         const content = parseSimpleLayout(frontmatter.body, config);
         const data = Object.assign({}, frontmatter.attributes, { NODE_ENV: process.env.NODE_ENV });
-        const html = wax.compile(content)(data);
+        const js = wax.compile(content)(data);
 
-        asset.type = 'html';
-        asset.setCode(html);
+        asset.type = 'js';
+        asset.setCode(js);
 
         return [asset];
 
