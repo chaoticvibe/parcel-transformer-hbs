@@ -30,6 +30,8 @@ const transformer = new Transformer({
                 .replace(/"/g, "")
                 .replace(/'/g, "");
 
+            file = file.trim()
+
             // HACK this should be better but it works for me
             file = path.join(__dirname, '..', '..', 'src', 'frontend', file)
 
