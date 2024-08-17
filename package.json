@@ -9,12 +9,13 @@
         "parcel": "2.x"
     },
     "dependencies": {
+        "front-matter": "^2.3.0",
+        "fs-extra": "^11.2.0",
         "handlebars": "^4.7.7",
         "handlebars-helpers": "^0.10.0",
-        "parcel": "^2.0.1",
-        "front-matter": "^2.3.0",
         "handlebars-layouts": "^3.1.4",
-        "handlebars-wax": "^6.1.0"
+        "handlebars-wax": "^6.1.0",
+        "parcel": "^2.0.1"
     },
     "keywords": [
         "parcel",
