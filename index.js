@@ -1,65 +1,67 @@
-const fs = require('fs')
-const path = require('path')
-const { Transformer } = require("@parcel/plugin")
+const minify = require("html-minifier").minify;
+const fs = require("fs");
+const path = require("path");
+const { Transformer } = require("@parcel/plugin");
 let Handlebars = require("handlebars");
-let helpers = require('handlebars-helpers')();
-let handlebarsWax = require('handlebars-wax');
+let helpers = require("handlebars-helpers")();
+let handlebarsWax = require("handlebars-wax");
 
-const wax = handlebarsWax(Handlebars)
-    .helpers(helpers)
+const wax = handlebarsWax(Handlebars).helpers(helpers);
 
 const transformer = new Transformer({
-    async transform({ asset }) {
+  async transform({ asset }) {
+    let content = await asset.getCode();
 
-        let content = await asset.getCode();
+    // INLINE svg assets
 
+    let regex = /<include src=(.*?)\/>/g;
+    let includes = content.match(regex);
 
-        // INLINE svg assets
+    let cache = {};
 
-        let regex = /<include src=(.*?)\/>/g;
-        let includes = content.match(regex);
+    for (let match in includes) {
+      let file = includes[match];
 
-        let cache = {}
+      file = file
+        .replace(/<include src=/g, "")
+        .replace(/\/>/g, "")
+        .replace(/"/g, "")
+        .replace(/'/g, "");
 
-        for (let match in includes) {
+      file = file.trim();
 
-            let file = includes[match]
+      // HACK this should be better but it works for me
+      file = path.join(__dirname, "..", "..", "src", "frontend", file);
 
-            file = file.replace(/<include src=/g, "")
-                .replace(/\/>/g, "")
-                .replace(/"/g, "")
-                .replace(/'/g, "");
+      let svg = cache[file] ? cache[file] : fs.readFileSync(file, "utf-8");
 
-            file = file.trim()
+      cache[file] = cache[file] ? cache[file] : svg;
 
-            // HACK this should be better but it works for me
-            file = path.join(__dirname, '..', '..', 'src', 'frontend', file)
-
-            let svg = (cache[file])
-                ? cache[file]
-                : fs.readFileSync(file, 'utf-8')
-
-
-            cache[file] = (cache[file])
-                ? cache[file]
-                : svg
-
-            content = content.replace(includes[match], cache[file])
-
-        }
-
-        const precompiled = Handlebars.precompile(content, { knownHelpers: helpers });
-        asset.setCode(`
+      content = content.replace(includes[match], cache[file]);
+    }
+    content = process.env.NODE_ENV === 'production' ? minify(content, {
+      collapseWhitespace: true,
+      removeComments: true,
+      removeRedundantAttributes: true,
+      useShortDoctype: true,
+      removeEmptyAttributes: false,
+      removeOptionalTags: true,
+      minifyJS: true,
+      minifyCSS: true,
+      caseSensitive: true,
+      keepClosingSlash: true,
+      html5: true,
+    }) : content;
+    const precompiled = Handlebars.precompile(content, {
+      knownHelpers: helpers,
+    });
+    asset.setCode(`
         let tpl = ${precompiled};
         import { template } from 'handlebars/runtime';
-        export default template(${precompiled})`)
-        asset.type = "js"
-        return [asset];
-    },
+        export default template(${precompiled})`);
+    asset.type = "js";
+    return [asset];
+  },
 });
-
-
-
-
 
 module.exports = transformer;
