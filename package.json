@@ -15,7 +15,8 @@
         "handlebars-helpers": "^0.10.0",
         "handlebars-layouts": "^3.1.4",
         "handlebars-wax": "^6.1.0",
-        "parcel": "^2.0.1"
+        "parcel": "^2.0.1",
+        "save-dev": "^0.0.1-security"
     },
     "keywords": [
         "parcel",
@@ -23,5 +24,8 @@
         "handlebars",
         "parcel handlebars plugin",
         "parcel handlebars transform"
-    ]
+    ],
+    "devDependencies": {
+        "loader-utils": "^3.3.1"
+    }
 }

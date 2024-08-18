@@ -1,4 +1,5 @@
 const fs = require('fs-extra');
+const loaderUtils = require("loader-utils");
 const path = require('path');
 const { Transformer } = require('@parcel/plugin');
 let Handlebars = require('handlebars');
@@ -43,7 +44,7 @@ const transformer = new Transformer({
         }
 
         // Load and register partials
-      
+      /*
         const partialsDir = path.join(process.cwd(), 'src', 'template', 'partials');
         if (await fs.pathExists(partialsDir)) {
             const partialFiles = await fs.readdir(partialsDir);
@@ -55,13 +56,22 @@ const transformer = new Transformer({
                 Handlebars.registerPartial(partialName, partialContent);
             });
         }
-
+*/
 
         // Precompile Handlebars template
-        const precompiled = Handlebars.precompile(content, { knownHelpers: helpers });
+        const template = Handlebars.precompile(content, { knownHelpers: helpers });
+        var runtimePath = require.resolve("handlebars/runtime");
 
-        asset.setCode(`
-        export default ${precompiled}`);
+        var slug = template
+        ? "var Handlebars = require('handlebars/runtime');\n" +
+          'function __default(obj) { return obj && (obj.__esModule ? obj["default"] : obj); }\n' +
+          ' export default = (Handlebars["default"] || Handlebars).template(' +
+          template +
+          ");"
+        : ' export default = function(){return "";};';
+        console.log(slug);
+        console.log("buildddddddddddddddddddddddddddddddddd");
+        asset.setCode(slug);
         asset.type = "js";
         return [asset];
     },
