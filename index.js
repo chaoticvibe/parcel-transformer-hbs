@@ -14,7 +14,7 @@ const transformer = new Transformer({
     let defaultMayaIgnoreList;
     try {
       const modulePath = require.resolve(
-        "parcel-reporter-maya/defaultMayaIgnoreList.js",
+        "parcel-reporter-maya/defaultIgnoreList.js",
         {
           paths: [asset.filePath, __dirname],
         }
