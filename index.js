@@ -1,182 +1,59 @@
-"use strict";
+const minify = require("html-minifier").minify;
+const fs = require("fs");
+const path = require("path");
+const { Transformer } = require("@parcel/plugin");
+const { replaceURLReferences } = require("@parcel/utils");
 
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
+let Handlebars = require("handlebars");
+let helpers = require("handlebars-helpers")();
+let handlebarsWax = require("handlebars-wax");
 
-function _plugin() {
-  const data = require("@parcel/plugin");
-  _plugin = function () {
-    return data;
-  };
-  return data;
-}
+const wax = handlebarsWax(Handlebars).helpers(helpers);
 
-function _posthtmlParser() {
-  const data = require("posthtml-parser");
-  _posthtmlParser = function () {
-    return data;
-  };
-  return data;
-}
+const transformer = new Transformer({
+  async transform({ asset, bundleGraph, getInlineBundleContents }) {
+    // Obter o código do asset
+    let content = await asset.getCode();
 
-function _nullthrows() {
-  const data = _interopRequireDefault(require("nullthrows"));
-  _nullthrows = function () {
-    return data;
-  };
-  return data;
-}
+    // Atualizar URLs de recursos (similar ao posthtml)
+    let { contents: updatedContent, map } = replaceURLReferences({
+      bundle: asset.bundle,
+      bundleGraph,
+      contents: content,
+      relative: false,
+      getReplacement: contents => contents.replace(/"/g, '&quot;'),
+    });
 
-function _posthtml() {
-  const data = _interopRequireDefault(require("posthtml"));
-  _posthtml = function () {
-    return data;
-  };
-  return data;
-}
+    // Minificar o HTML se estiver em produção
+    let minifiedContent = process.env.NODE_ENV === 'production' ? minify(updatedContent, {
+      collapseWhitespace: true,
+      removeComments: true,
+      removeRedundantAttributes: true,
+      useShortDoctype: true,
+      removeEmptyAttributes: false,
+      removeOptionalTags: true,
+      minifyJS: true,
+      minifyCSS: true,
+      caseSensitive: true,
+      keepClosingSlash: true,
+      html5: true,
+    }) : updatedContent;
 
-function _posthtmlRender() {
-  const data = require("posthtml-render");
-  _posthtmlRender = function () {
-    return data;
-  };
-  return data;
-}
+    // Precompilar o template Handlebars
+    const precompiled = Handlebars.precompile(minifiedContent, {
+      knownHelpers: helpers,
+    });
 
-function _semver() {
-  const data = _interopRequireDefault(require("semver"));
-  _semver = function () {
-    return data;
-  };
-  return data;
-}
-
-var _dependencies = _interopRequireDefault(require("./dependencies"));
-var _inline = _interopRequireDefault(require("./inline"));
-function _diagnostic() {
-  const data = _interopRequireDefault(require("@parcel/diagnostic"));
-  _diagnostic = function () {
-    return data;
-  };
-  return data;
-}
-
-function _handlebars() {
-  const data = require("handlebars");
-  _handlebars = function () {
-    return data;
-  };
-  return data;
-}
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var _default = exports.default = new (_plugin().Transformer)({
-  canReuseAST({ ast }) {
-    return ast.type === 'posthtml' && _semver().default.satisfies(ast.version, '^0.4.0');
-  },
-
-  async parse({ asset }) {
-    return {
-      type: 'posthtml',
-      version: '0.4.1',
-      program: (0, _posthtmlParser().parser)(await asset.getCode(), {
-        lowerCaseTags: true,
-        lowerCaseAttributeNames: true,
-        sourceLocations: true,
-        xmlMode: asset.type === 'xhtml'
-      })
-    };
-  },
-
-  async transform({ asset, options }) {
-    if (asset.type === 'htm') {
-      asset.type = 'html';
-    }
-    asset.bundleBehavior = 'isolated';
-    let ast = (0, _nullthrows().default)(await asset.getAST());
-    let hasModuleScripts;
-
-    try {
-      hasModuleScripts = (0, _dependencies.default)(asset, ast);
-    } catch (errors) {
-      if (Array.isArray(errors)) {
-        throw new (_diagnostic().default)({
-          diagnostic: errors.map(error => ({
-            message: error.message,
-            origin: '@parcel/transformer-html',
-            codeFrames: [{
-              filePath: error.filePath,
-              language: 'html',
-              codeHighlights: [error.loc]
-            }]
-          }))
-        });
-      }
-      throw errors;
-    }
-
-    const { assets: inlineAssets, hasModuleScripts: hasInlineModuleScripts } = (0, _inline.default)(asset, ast);
-    const result = [asset, ...inlineAssets];
-
-    // Pré-compilar o conteúdo HTML como template Handlebars
-    if (options.hmrOptions && !(hasModuleScripts || hasInlineModuleScripts)) {
-      const script = {
-        tag: 'script',
-        attrs: {
-          src: asset.addURLDependency('hmr.js', { priority: 'parallel' })
-        },
-        content: []
-      };
-      const found = findFirstMatch(ast, [{ tag: 'body' }, { tag: 'html' }]);
-      if (found) {
-        found.content = found.content || [];
-        found.content.push(script);
-      } else {
-        ast.program.push(script);
-      }
-      asset.setAST(ast);
-      result.push({
-        type: 'js',
-        content: '',
-        uniqueKey: 'hmr.js'
-      });
-    }
-
-    // Pré-compilar o template Handlebars e substituir o conteúdo do asset
-    const content = (0, _posthtmlRender().render)(ast.program);
-    const precompiled = _handlebars().default.precompile(content);
-
+    // Definir o código do asset para a função precompilada
     asset.setCode(`
+      let tpl = ${precompiled};
       import { template } from 'handlebars/runtime';
       export default template(${precompiled});
     `);
-    asset.type = 'js';
-    return result;
-  },
+    asset.type = "js";
 
-  generate({ ast, asset }) {
-    return {
-      content: (0, _posthtmlRender().render)(ast.program, {
-        closingSingleTag: asset.type === 'xhtml' ? 'slash' : undefined
-      })
-    };
-  }
+    return [asset];
+  },
 });
 
-function findFirstMatch(ast, expressions) {
-  let found;
-  for (const expression of expressions) {
-    (0, _posthtml().default)().match.call(ast.program, expression, node => {
-      found = node;
-      return node;
-    });
-    if (found) {
-      return found;
-    }
-  }
-}
-
-module.exports = _default;
+module.exports = transformer;

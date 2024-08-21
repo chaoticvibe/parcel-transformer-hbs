@@ -7,20 +7,13 @@
     "parcel": "2.x"
   },
   "dependencies": {
+    "@parcel/plugin": "2.12.0",
+    "@parcel/utils": "^2.12.0",
     "fs-extra": "^11.2.0",
     "handlebars": "^4.7.7",
     "handlebars-helpers": "^0.10.0",
     "handlebars-layouts": "^3.1.4",
     "handlebars-wax": "^6.1.0",
-    "html-minifier": "^4.0.0",
-    "@parcel/diagnostic": "2.12.0",
-    "@parcel/plugin": "2.12.0",
-    "@parcel/rust": "2.12.0",
-    "nullthrows": "^1.1.1",
-    "posthtml": "^0.16.5",
-    "posthtml-parser": "^0.10.1",
-    "posthtml-render": "^3.0.0",
-    "semver": "^7.5.2",
-    "srcset": "4"
+    "html-minifier": "^4.0.0"
   }
 }
