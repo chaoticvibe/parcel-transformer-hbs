@@ -74,11 +74,11 @@ const findProjectRoot = (event, options) => {
   return options.projectRoot;
 };
 
-const getSettings = (projectRoot) => {
+const getMayaSettings = (projectRoot) => {
   let packageJson = JSON.parse(
     fs.readFileSync(path.join(projectRoot, "package.json"))
   );
-  var section = packageJson[PACKAGE_JSON_SECTION];
+  var section = packageJson["parcelMaya"];
   if (Array.isArray(section)) {
     return section;
   } else {
@@ -89,5 +89,5 @@ module.exports = {
   loadUserConfig,
   parseSimpleLayout,
   findProjectRoot,
-  getSettings
+  getMayaSettings
 };
