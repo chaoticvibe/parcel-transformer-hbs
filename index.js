@@ -4,7 +4,7 @@ let Handlebars = require("handlebars");
 let helpers = require("handlebars-helpers")();
 let handlebarsWax = require("handlebars-wax");
 const addDep = require("./addDep");
-const { getMayaSettings, findProjectRoot, htmlReplaceClasses } = require("./utils");
+const { getMayaSettings, findProjectRoot, htmlObfuscateClasses } = require("./utils");
 
 const wax = handlebarsWax(Handlebars).helpers(helpers);
 const isProduction =  process.env.NODE_ENV === "production";
@@ -40,10 +40,10 @@ const transformer = new Transformer({
     if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
       mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
     }
-    
+    const hashSalt = mayaConfig.hashSalt ? mayaConfig.hashSalt.toString() : "";
     content = addDep(content, asset);
 
-    content = isProduction ? htmlReplaceClasses(content, mayaIgnoreList) : content;
+    content = isProduction ? htmlObfuscateClasses(content, mayaIgnoreList, hashSalt) : content;
     
     try {
       content =

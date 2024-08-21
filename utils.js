@@ -129,7 +129,7 @@ const listAllHtmlClasses = (html) => {
   // Converte o Set em uma array para retornar todas as classes
   return Array.from(classes);
 };
-const htmlReplaceClasses = (html, mayaIgnoreList) => {
+const htmlObfuscateClasses = (html, mayaIgnoreList, hashSalt = "") => {
   mayaIgnoreList.push(...htmlTags);
   const shouldIgnore = createGlobIgnoringFunction([
     ...mayaIgnoreList,
@@ -142,7 +142,7 @@ const htmlReplaceClasses = (html, mayaIgnoreList) => {
   });
   const hashClasses = {};
   allClasses.forEach((classe) => {
-    hashClasses[classe] = hashClass(classe);
+    hashClasses[classe] = hashClass(hashSalt + classe);
   })
   return replaceClasses(html, hashClasses);
 };
@@ -150,7 +150,7 @@ module.exports = {
   loadUserConfig,
   parseSimpleLayout,
   findProjectRoot,
-  htmlReplaceClasses,
+  htmlObfuscateClasses,
   hashClass,
   getMayaSettings,
   createGlobIgnoringFunction,
