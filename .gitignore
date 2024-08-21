@@ -3,6 +3,7 @@
 !.gitignore
 !index.js
 !addDep.js
+!utils.js
 !inline.js
 !package-lock.json
 !package.json

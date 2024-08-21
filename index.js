@@ -25,6 +25,15 @@ const transformer = new Transformer({
         "--parcel-transformer-hbs: Failed to require defaultIgnoreList from parcel-reporter-maya"
       );
     }
+
+    const projectRoot = findProjectRoot(event, options);
+    const configs = getSettings(projectRoot);
+    const config = configs && Array.isArray(configs) && configs[0] ? configs[0] : {};
+    const ignoreList =
+    config.ignoreList && Array.isArray(config.ignoreList)
+        ? config.ignoreList
+        : [];
+        
     console.log(defaultIgnoreList);
     content = addDep(content, asset);
     try {
