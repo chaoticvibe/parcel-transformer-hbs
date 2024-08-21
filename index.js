@@ -4,41 +4,51 @@ let Handlebars = require("handlebars");
 let helpers = require("handlebars-helpers")();
 let handlebarsWax = require("handlebars-wax");
 const addDep = require("./addDep");
+const { getMayaSettings, findProjectRoot, htmlReplaceClasses } = require("./utils");
 
 const wax = handlebarsWax(Handlebars).helpers(helpers);
-
+const isProduction =  process.env.NODE_ENV === "production";
 const transformer = new Transformer({
   async transform({ asset }) {
     let content = await asset.getCode();
-    let defaultIgnoreList;
+    let defaultMayaIgnoreList;
     try {
       const modulePath = require.resolve(
-        "parcel-reporter-maya/defaultIgnoreList.js",
+        "parcel-reporter-maya/defaultMayaIgnoreList.js",
         {
           paths: [asset.filePath, __dirname],
         }
       );
       console.log(modulePath);
-      defaultIgnoreList = require(modulePath);
+      defaultMayaIgnoreList = require(modulePath);
     } catch (err) {
       console.warn(
-        "--parcel-transformer-hbs: Failed to require defaultIgnoreList from parcel-reporter-maya"
+        "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-reporter-maya"
       );
     }
 
     const projectRoot = findProjectRoot(event, options);
-    const configs = getSettings(projectRoot);
-    const config = configs && Array.isArray(configs) && configs[0] ? configs[0] : {};
-    const ignoreList =
-    config.ignoreList && Array.isArray(config.ignoreList)
-        ? config.ignoreList
+    const mayaConfigs = getMayaSettings(projectRoot);
+    const mayaConfig =
+      mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
+        ? mayaConfigs[0]
+        : {};
+    const mayaIgnoreList =
+      mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
+        ? mayaConfig.ignoreList
         : [];
-        
-    console.log(defaultIgnoreList);
+
+    if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
+      mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
+    }
+    
     content = addDep(content, asset);
+
+    content = isProduction ? htmlReplaceClasses(content, mayaIgnoreList) : content;
+    
     try {
       content =
-        process.env.NODE_ENV === "production"
+      isProduction
           ? minify(content, {
               collapseWhitespace: true,
               removeComments: true,
@@ -63,9 +73,12 @@ const transformer = new Transformer({
       export default template(${precompiled})`);
       asset.type = "js";
     } catch (err) {
-      throw new Error("--parcel-transformer-hbs: Error compiling template.", err);
+      throw new Error(
+        "--parcel-transformer-hbs: Error compiling template.",
+        err
+      );
     }
-  
+
     return [asset];
   },
 });
