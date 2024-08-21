@@ -19,7 +19,6 @@ const transformer = new Transformer({
           paths: [asset.filePath, __dirname],
         }
       );
-      console.log(modulePath);
       defaultMayaIgnoreList = require(modulePath);
     } catch (err) {
       console.warn(
