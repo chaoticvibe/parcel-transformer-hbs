@@ -46,7 +46,7 @@ module.exports = new Transformer({
         throw new ThrowableDiagnostic({
           diagnostic: errors.map(error => ({
             message: error.message,
-            origin: 'parcel-transformer-hbs',
+            origin: '@parcel/transformer-handlebars',
             codeFrames: [
               {
                 filePath: error.filePath,
