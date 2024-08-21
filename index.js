@@ -1,45 +1,106 @@
-const minify = require("html-minifier").minify;
-const fs = require("fs");
-const path = require("path");
-const { Transformer } = require("@parcel/plugin");
-let Handlebars = require("handlebars");
-let helpers = require("handlebars-helpers")();
-let handlebarsWax = require("handlebars-wax");
+const { Transformer } = require('@parcel/plugin');
+const { parse } = require('posthtml-parser');
+const nullthrows = require('nullthrows');
+const { render } = require('posthtml-render');
+const semver = require('semver');
+const collectDependencies = require('./dependencies'); // Implemente ou substitua
+const extractInlineAssets = require('./inline'); // Implemente ou substitua
+const ThrowableDiagnostic = require('@parcel/diagnostic');
+const Handlebars = require('handlebars');
+const helpers = require('handlebars-helpers')();
+const handlebarsWax = require('handlebars-wax');
+const minify = require('html-minifier').minify;
 
 const wax = handlebarsWax(Handlebars).helpers(helpers);
 
-const transformer = new Transformer({
-  async transform({ asset }) {
-    let content = await asset.getCode();
+module.exports = new Transformer({
+  canReuseAST({ ast }) {
+    return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.4.0');
+  },
 
-    // INLINE svg assets
+  async parse({ asset }) {
+    return {
+      type: 'posthtml',
+      version: '0.4.1',
+      program: parse(await asset.getCode(), {
+        lowerCaseTags: true,
+        lowerCaseAttributeNames: true,
+        sourceLocations: true,
+        xmlMode: asset.type === 'xhtml',
+      }),
+    };
+  },
 
-    let regex = /<include src=(.*?)\/>/g;
-    let includes = content.match(regex);
-
-    let cache = {};
-
-    for (let match in includes) {
-      let file = includes[match];
-
-      file = file
-        .replace(/<include src=/g, "")
-        .replace(/\/>/g, "")
-        .replace(/"/g, "")
-        .replace(/'/g, "");
-
-      file = file.trim();
-
-      // HACK this should be better but it works for me
-      file = path.join(__dirname, "..", "..", "src", "frontend", file);
-
-      let svg = cache[file] ? cache[file] : fs.readFileSync(file, "utf-8");
-
-      cache[file] = cache[file] ? cache[file] : svg;
-
-      content = content.replace(includes[match], cache[file]);
+  async transform({ asset, options }) {
+    if (asset.type === 'htm') {
+      asset.type = 'html';
     }
-    content = process.env.NODE_ENV === 'production' ? minify(content, {
+
+    asset.bundleBehavior = 'isolated';
+    let ast = nullthrows(await asset.getAST());
+
+    try {
+      collectDependencies(asset, ast);
+    } catch (errors) {
+      if (Array.isArray(errors)) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errors.map(error => ({
+            message: error.message,
+            origin: 'parcel-transformer-hbs',
+            codeFrames: [
+              {
+                filePath: error.filePath,
+                language: 'html',
+                codeHighlights: [error.loc],
+              },
+            ],
+          })),
+        });
+      }
+      throw errors;
+    }
+
+    const { assets: inlineAssets } = extractInlineAssets(asset, ast);
+    const result = [asset, ...inlineAssets];
+
+    if (options.hmrOptions) {
+      const script = {
+        tag: 'script',
+        attrs: {
+          src: asset.addURLDependency('hmr.js', {
+            priority: 'parallel',
+          }),
+        },
+        content: [],
+      };
+
+      const found = findFirstMatch(ast, [{ tag: 'body' }, { tag: 'html' }]);
+
+      if (found) {
+        found.content = found.content || [];
+        found.content.push(script);
+      } else {
+        ast.program.push(script);
+      }
+
+      asset.setAST(ast);
+
+      result.push({
+        type: 'js',
+        content: '',
+        uniqueKey: 'hmr.js',
+      });
+    }
+
+    return result;
+  },
+
+  generate({ ast, asset }) {
+    let code = render(ast.program, {
+      closingSingleTag: asset.type === 'xhtml' ? 'slash' : undefined,
+    });
+
+    code = process.env.NODE_ENV === 'production' ? minify(code, {
       collapseWhitespace: true,
       removeComments: true,
       removeRedundantAttributes: true,
@@ -51,17 +112,33 @@ const transformer = new Transformer({
       caseSensitive: true,
       keepClosingSlash: true,
       html5: true,
-    }) : content;
-    const precompiled = Handlebars.precompile(content, {
+    }) : code;
+
+    const precompiled = Handlebars.precompile(code, {
       knownHelpers: helpers,
     });
-    asset.setCode(`
-        let tpl = ${precompiled};
-        import { template } from 'handlebars/runtime';
-        export default template(${precompiled})`);
-    asset.type = "js";
-    return [asset];
+
+    return {
+      content: `
+        const tpl = ${precompiled};
+        const { template } = require('handlebars/runtime');
+        module.exports = template(${precompiled});
+      `,
+    };
   },
 });
 
-module.exports = transformer;
+function findFirstMatch(ast, expressions) {
+  let found;
+
+  for (const expression of expressions) {
+    require('posthtml')().match.call(ast.program, expression, node => {
+      found = node;
+      return node;
+    });
+
+    if (found) {
+      return found;
+    }
+  }
+}
