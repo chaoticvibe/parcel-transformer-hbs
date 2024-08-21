@@ -1,15 +1,32 @@
-const { hashString } = require('@parcel/rust');
-const PostHTML = require('posthtml');
+"use strict";
 
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = extractInlineAssets;
+function _rust() {
+  const data = require("@parcel/rust");
+  _rust = function () {
+    return data;
+  };
+  return data;
+}
+function _posthtml() {
+  const data = _interopRequireDefault(require("posthtml"));
+  _posthtml = function () {
+    return data;
+  };
+  return data;
+}
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 const SCRIPT_TYPES = {
   'application/javascript': 'js',
   'text/javascript': 'js',
   'application/json': false,
   'application/ld+json': 'jsonld',
   'text/html': false,
-  module: 'js',
+  module: 'js'
 };
-
 function extractInlineAssets(asset, ast) {
   let program = ast.program;
   let key = 0;
@@ -17,13 +34,13 @@ function extractInlineAssets(asset, ast) {
   // Extract inline <script> and <style> tags for processing.
   let parts = [];
   let hasModuleScripts = false;
-  PostHTML().walk.call(program, (node) => {
-    let parcelKey = hashString(`${asset.id}:${key++}`);
+  (0, _posthtml().default)().walk.call(program, node => {
+    let parcelKey = (0, _rust().hashString)(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('');
       if (value != null) {
+        var _node$attrs, _node$location;
         let type, env;
-
         if (node.tag === 'style') {
           if (node.attrs && node.attrs.type != null) {
             type = node.attrs.type.split('/')[1];
@@ -35,61 +52,47 @@ function extractInlineAssets(asset, ast) {
           if (SCRIPT_TYPES[node.attrs.type] === false) {
             return node;
           }
-
           if (SCRIPT_TYPES[node.attrs.type]) {
             type = SCRIPT_TYPES[node.attrs.type];
           } else {
             type = node.attrs.type.split('/')[1];
           }
-
           let outputFormat = 'global';
           let sourceType = 'script';
           let attrs = node.attrs;
           if (attrs && attrs.type === 'module') {
-            if (
-              asset.env.shouldScopeHoist &&
-              asset.env.supports('esmodules', true)
-            ) {
+            if (asset.env.shouldScopeHoist && asset.env.supports('esmodules', true)) {
               outputFormat = 'esmodule';
             } else {
               delete attrs.type;
             }
-
             sourceType = 'module';
           }
-
-          let loc = node.location
-            ? {
-                filePath: asset.filePath,
-                start: node.location.start,
-                end: node.location.end,
-              }
-            : undefined;
-
+          let loc = node.location ? {
+            filePath: asset.filePath,
+            start: node.location.start,
+            end: node.location.end
+          } : undefined;
           env = {
             sourceType,
             outputFormat,
-            loc,
+            loc
           };
         } else {
-          let loc = node.location
-            ? {
-                filePath: asset.filePath,
-                start: node.location.start,
-                end: node.location.end,
-              }
-            : undefined;
+          let loc = node.location ? {
+            filePath: asset.filePath,
+            start: node.location.start,
+            end: node.location.end
+          } : undefined;
           type = 'js';
           env = {
             sourceType: 'script',
-            loc,
+            loc
           };
         }
-
         if (!type) {
           return node;
         }
-
         if (!node.attrs) {
           node.attrs = {};
         }
@@ -100,7 +103,7 @@ function extractInlineAssets(asset, ast) {
         }
 
         // Inform packager to remove type, since CSS and JS are the defaults.
-        if (node.attrs?.type && node.tag === 'style') {
+        if ((_node$attrs = node.attrs) !== null && _node$attrs !== void 0 && _node$attrs.type && node.tag === 'style') {
           delete node.attrs.type;
         }
 
@@ -110,9 +113,8 @@ function extractInlineAssets(asset, ast) {
 
         asset.addDependency({
           specifier: parcelKey,
-          specifierType: 'esm',
+          specifierType: 'esm'
         });
-
         parts.push({
           type,
           content: value,
@@ -121,11 +123,11 @@ function extractInlineAssets(asset, ast) {
           env,
           meta: {
             type: 'tag',
+            // $FlowFixMe
             node,
-            startLine: node.location?.start.line,
-          },
+            startLine: (_node$location = node.location) === null || _node$location === void 0 ? void 0 : _node$location.start.line
+          }
         });
-
         if (env && env.sourceType === 'module') {
           hasModuleScripts = true;
         }
@@ -134,11 +136,11 @@ function extractInlineAssets(asset, ast) {
 
     // Process inline style attributes.
     let attrs = node.attrs;
-    let style = attrs?.style;
+    let style = attrs === null || attrs === void 0 ? void 0 : attrs.style;
     if (attrs != null && style != null) {
       attrs.style = asset.addDependency({
         specifier: parcelKey,
-        specifierType: 'esm',
+        specifierType: 'esm'
       });
       asset.setAST(ast); // mark dirty
 
@@ -149,18 +151,15 @@ function extractInlineAssets(asset, ast) {
         bundleBehavior: 'inline',
         meta: {
           type: 'attr',
-          node,
-        },
+          // $FlowFixMe
+          node
+        }
       });
     }
-
     return node;
   });
-
   return {
     assets: parts,
-    hasModuleScripts,
+    hasModuleScripts
   };
 }
-
-module.exports = extractInlineAssets;
