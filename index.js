@@ -10,9 +10,7 @@ const wax = handlebarsWax(Handlebars).helpers(helpers);
 const transformer = new Transformer({
   async transform({ asset }) {
     let content = await asset.getCode();
-    asset.setEnvironment({
-      sourceType: "html"
-    });
+
     
     content = addDep(content, asset);
     
