@@ -1,9 +1,8 @@
 // @flow
 
-import type {AST, MutableAsset, FilePath} from '@parcel/types';
-import type {PostHTMLNode} from 'posthtml';
-import PostHTML from 'posthtml';
-import {parse, stringify} from 'srcset';
+const PostHTML = require('posthtml');
+const { parse, stringify } = require('srcset');
+
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -70,10 +69,10 @@ const FEED_TYPES = new Set(['application/rss+xml', 'application/atom+xml']);
 // Options to be passed to `addDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
-    href: {needsStableName: true},
+    href: { needsStableName: true },
   },
   iframe: {
-    src: {needsStableName: true},
+    src: { needsStableName: true },
   },
   link(attrs) {
     if (attrs.rel === 'stylesheet') {
@@ -86,7 +85,7 @@ const OPTIONS = {
 };
 
 function collectSrcSetDependencies(asset, srcset, opts) {
-  let parsed = parse(srcset).map(({url, ...v}) => ({
+  let parsed = parse(srcset).map(({ url, ...v }) => ({
     url: asset.addURLDependency(url, opts),
     ...v,
   }));
@@ -101,20 +100,14 @@ function getAttrDepHandler(attr) {
   return (asset, src, opts) => asset.addURLDependency(src, opts);
 }
 
-export default function collectDependencies(
-  asset: MutableAsset,
-  ast: AST,
-): boolean {
+function collectDependencies(asset, ast) {
   let isDirty = false;
   let hasModuleScripts = false;
   let seen = new Set();
-  let errors: Array<{|
-    message: string,
-    filePath: FilePath,
-    loc: PostHTMLNode['location'],
-  |}> = [];
+  let errors = [];
+  
   PostHTML().walk.call(ast.program, node => {
-    let {tag, attrs} = node;
+    let { tag, attrs } = node;
     if (!attrs || seen.has(node)) {
       return node;
     }
@@ -197,13 +190,13 @@ export default function collectDependencies(
 
       // If this is a <script type="module">, and not all of the browser targets support ESM natively,
       // add a copy of the script tag with a nomodule attribute.
-      let copy: ?PostHTMLNode;
+      let copy;
       if (
         outputFormat === 'esmodule' &&
         !asset.env.supports('esmodules', true)
       ) {
         let attrs = Object.assign({}, node.attrs);
-        copy = {...node, attrs};
+        copy = { ...node, attrs };
         delete attrs.type;
         attrs.nomodule = '';
         attrs.defer = '';
@@ -293,3 +286,5 @@ export default function collectDependencies(
 
   return hasModuleScripts;
 }
+
+module.exports = collectDependencies;

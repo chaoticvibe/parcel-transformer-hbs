@@ -1,9 +1,4 @@
-// @flow strict-local
-
-import type {AST, MutableAsset, TransformerResult} from '@parcel/types';
-import {hashString} from '@parcel/rust';
-import type {PostHTMLNode} from 'posthtml';
-
+import { hashString } from '@parcel/rust';
 import PostHTML from 'posthtml';
 
 const SCRIPT_TYPES = {
@@ -15,22 +10,14 @@ const SCRIPT_TYPES = {
   module: 'js',
 };
 
-interface ExtractInlineAssetsResult {
-  hasModuleScripts: boolean;
-  assets: Array<TransformerResult>;
-}
-
-export default function extractInlineAssets(
-  asset: MutableAsset,
-  ast: AST,
-): ExtractInlineAssetsResult {
-  let program: PostHTMLNode = ast.program;
+function extractInlineAssets(asset, ast) {
+  let program = ast.program;
   let key = 0;
 
   // Extract inline <script> and <style> tags for processing.
-  let parts: Array<TransformerResult> = [];
+  let parts = [];
   let hasModuleScripts = false;
-  PostHTML().walk.call(program, (node: PostHTMLNode) => {
+  PostHTML().walk.call(program, (node) => {
     let parcelKey = hashString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('');
@@ -134,7 +121,6 @@ export default function extractInlineAssets(
           env,
           meta: {
             type: 'tag',
-            // $FlowFixMe
             node,
             startLine: node.location?.start.line,
           },
@@ -163,7 +149,6 @@ export default function extractInlineAssets(
         bundleBehavior: 'inline',
         meta: {
           type: 'attr',
-          // $FlowFixMe
           node,
         },
       });
@@ -177,3 +162,5 @@ export default function extractInlineAssets(
     hasModuleScripts,
   };
 }
+
+export default extractInlineAssets;
