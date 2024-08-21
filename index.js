@@ -9,7 +9,7 @@ const { getMayaSettings, findProjectRoot, htmlReplaceClasses } = require("./util
 const wax = handlebarsWax(Handlebars).helpers(helpers);
 const isProduction =  process.env.NODE_ENV === "production";
 const transformer = new Transformer({
-  async transform({ asset }) {
+  async transform({ asset, options }) {
     let content = await asset.getCode();
     let defaultMayaIgnoreList;
     try {
