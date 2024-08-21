@@ -2,6 +2,8 @@
 
 !.gitignore
 !index.js
+!dependencies.js
+!inline.js
 !package-lock.json
 !package.json
 !README.md
