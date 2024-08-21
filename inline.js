@@ -1,5 +1,5 @@
-import { hashString } from '@parcel/rust';
-import PostHTML from 'posthtml';
+const { hashString } = require('@parcel/rust');
+const PostHTML = require('posthtml');
 
 const SCRIPT_TYPES = {
   'application/javascript': 'js',
@@ -163,4 +163,4 @@ function extractInlineAssets(asset, ast) {
   };
 }
 
-export default extractInlineAssets;
+module.exports = extractInlineAssets;
