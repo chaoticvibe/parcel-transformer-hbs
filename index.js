@@ -27,7 +27,7 @@ const transformer = new Transformer({
       );
     }
 
-    const projectRoot = findProjectRoot(event, options);
+    const projectRoot = findProjectRoot(null, options);
     const mayaConfigs = getMayaSettings(projectRoot);
     const mayaConfig =
       mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
