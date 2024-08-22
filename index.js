@@ -75,7 +75,6 @@ const transformer = new Transformer({
         let url = dep[1].replace(regex, '');
         sources[i][1] = url;
       }
-      console.log(sources);
       export {tpl, sources};`);
       asset.type = "js";
     } catch (err) {
