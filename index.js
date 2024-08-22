@@ -40,10 +40,10 @@ const transformer = new Transformer({
     if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
       mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
     }
-    const hashSalt = mayaConfig.hashSalt ? mayaConfig.hashSalt.toString() : "";
+    const mayaHashSalt = mayaConfig.hashSalt ? mayaConfig.hashSalt.toString() : "";
     content = addDep(content, asset);
 
-    content = isProduction ? htmlObfuscateClasses(content, mayaIgnoreList, hashSalt) : content;
+    content = isProduction ? htmlObfuscateClasses(content, mayaIgnoreList, mayaHashSalt) : content;
     
     try {
       content =
@@ -68,8 +68,7 @@ const transformer = new Transformer({
       });
       asset.setCode(`
       let tpl = ${precompiled};
-      import { template } from 'handlebars/runtime';
-      export default template(${precompiled})`);
+      export default tpl;`);
       asset.type = "js";
     } catch (err) {
       throw new Error(
