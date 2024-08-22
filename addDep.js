@@ -1,46 +1,66 @@
 const cheerio = require("cheerio");
 function cleanPath(path) {
-  return path.replace(/\/{2,}/g, '/');
+  return path.replace(/\/{2,}/g, "/");
 }
-function addDep(html, asset, prefix = "___static_path_to_replace/") {
+function addDep(html, asset, prefix = "___static/") {
   const $ = cheerio.load(html);
 
   // Selecione todas as tags de imagem e pictures
-  const imageElements = $('img, picture');
+  const imageElements = $("img, picture");
 
   // Itera sobre cada elemento e atualiza atributos
   imageElements.each((i, el) => {
-    const src = $(el).attr('src');
-    const dataSrc = $(el).attr('data-src');
-    const srcSet = $(el).attr('srcset');
-
+    const src = $(el).attr("src");
+    const dataSrc = $(el).attr("data-src");
+    const srcSet = $(el).attr("srcset");
+    let sources = "";
     if (src) {
-      const dependency = asset.addURLDependency(src);
-
-      $(el).attr('src', cleanPath(prefix + src));
+      sources =
+        sources +
+        `\n
+      import src_${i} from '${cleanPath("./" + src)}';
+       sources[${src}] = src_${i};
+      \n`;
+      $(el).attr("src", cleanPath(prefix + src));
     }
     if (dataSrc) {
-      const dependency = asset.addURLDependency(dataSrc);
-
-      $(el).attr('data-src', cleanPath(prefix + dataSrc));
+      sources =
+        sources +
+        `\n
+    import dataSrc_${i} from '${cleanPath("./" + dataSrc)}';
+     sources[${dataSrc}] =  dataSrc_${i};
+    \n`;
+      $(el).attr("src", cleanPath(prefix + dataSrc));
+      $(el).attr("data-src", cleanPath(prefix + dataSrc));
     }
     if (srcSet) {
-      const dependency = asset.addURLDependency(srcSet);
-
-      $(el).attr('srcset', cleanPath(prefix + srcSet));
+      sources =
+        sources +
+        `\n
+    import srcSet_${i} from '${cleanPath("./" + srcSet)}';
+     sources[${srcSet}] =  srcSet_${i};
+    \n`;
+      $(el).attr("srcset", cleanPath(prefix + srcSet));
     }
 
     // Atualiza atributos nos elementos <source> dentro de <picture>
-    $(el).find('source').each((i, sourceEl) => {
-      const srcSetSource = $(sourceEl).attr('srcset');
-      if (srcSetSource) {
-        const dependency = asset.addURLDependency(srcSetSource);
-        $(sourceEl).attr('srcset', cleanPath(prefix + srcSetSource));
-      }
-    });
+    $(el)
+      .find("source")
+      .each((i, sourceEl) => {
+        const srcSetSource = $(sourceEl).attr("srcset");
+        if (srcSetSource) {
+          sources =
+            sources +
+            `\n
+    import srcSetSrc_${i} from '${cleanPath("./" + srcSetSource)}';
+     sources[${srcSetSource}] =  srcSetSrc_${i};
+    \n`;
+          $(sourceEl).attr("srcset", cleanPath(prefix + srcSetSource));
+        }
+      });
   });
 
   // Retorna o HTML modificado
-  return $.html();
+  return { html: $.html(), sources };
 }
 module.exports = addDep;

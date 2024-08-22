@@ -41,9 +41,9 @@ const transformer = new Transformer({
       mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
     }
     const mayaHashSalt = mayaConfig.hashSalt ? mayaConfig.hashSalt.toString() : "";
-    content = addDep(content, asset);
-
-    content = isProduction ? htmlObfuscateClasses(content, mayaIgnoreList, mayaHashSalt) : content;
+    const {html, sources} = addDep(content, asset);
+   
+    content = isProduction ? htmlObfuscateClasses(html, mayaIgnoreList, mayaHashSalt) : html;
     
     try {
       content =
@@ -67,8 +67,11 @@ const transformer = new Transformer({
         knownHelpers: helpers,
       });
       asset.setCode(`
+      let sources = {};
+      ${sources}
       let tpl = ${precompiled};
-      export default tpl;`);
+      console.log(sources);
+      export {tpl, sources};`);
       asset.type = "js";
     } catch (err) {
       throw new Error(
