@@ -68,10 +68,11 @@ const transformer = new Transformer({
       asset.setCode(`
       let sources = [];
       ${sources}
+      let regex = new RegExp('https?://[^/]+/?');
       let tpl = ${precompiled};
       for(let i = 0; i < sources.length; i++){
         let dep = sources[i];
-        let url = dep[1].replace(/https?:\/\/[^\/]+\/?/, '');
+        let url = dep[1].replace(regex, '');
         sources[i][1] = url;
       }
       console.log(sources);
