@@ -42,7 +42,6 @@ const transformer = new Transformer({
     }
     const mayaHashSalt = mayaConfig.hashSalt ? mayaConfig.hashSalt.toString() : "";
     const {html, sources} = addDep(content, asset);
-    console.log(sources);
     content = isProduction ? htmlObfuscateClasses(html, mayaIgnoreList, mayaHashSalt) : html;
     
     try {
