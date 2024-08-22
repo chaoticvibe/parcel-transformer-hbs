@@ -1,66 +1,87 @@
-const cheerio = require("cheerio");
-function cleanPath(path) {
-  return path.replace(/\/{2,}/g, "/");
-}
-function addDep(html, asset, prefix = "___static/") {
-  const $ = cheerio.load(html);
+const minify = require("html-minifier").minify;
+const { Transformer } = require("@parcel/plugin");
+let Handlebars = require("handlebars");
+let helpers = require("handlebars-helpers")();
+let handlebarsWax = require("handlebars-wax");
+const addDep = require("./addDep");
+const { getMayaSettings, findProjectRoot, htmlObfuscateClasses } = require("./utils");
 
-  // Selecione todas as tags de imagem e pictures
-  const imageElements = $("img, picture");
-  var sources = "";
-  // Itera sobre cada elemento e atualiza atributos
-  imageElements.each((i, el) => {
-    const src = $(el).attr("src");
-    const dataSrc = $(el).attr("data-src");
-    const srcSet = $(el).attr("srcset");
-   
-    if (src) {
-      sources =
-        sources +
-        `\n
-      import src_${i} from '${cleanPath("./" + src)}';
-       sources.push(["${src}", src_${i}]);
-      \n`;
-      $(el).attr("src", cleanPath(prefix + src));
-    }
-    if (dataSrc) {
-      sources =
-        sources +
-        `\n
-    import dataSrc_${i} from '${cleanPath("./" + dataSrc)}';
-     sources.push(["${dataSrc}", dataSrc_${i}]);
-    \n`;
-      $(el).attr("src", cleanPath(prefix + dataSrc));
-      $(el).attr("data-src", cleanPath(prefix + dataSrc));
-    }
-    if (srcSet) {
-      sources =
-        sources +
-        `\n
-    import srcSet_${i} from '${cleanPath("./" + srcSet)}';
-     sources.push(["${srcSet}", srcSet_${i}]);
-    \n`;
-      $(el).attr("srcset", cleanPath(prefix + srcSet));
-    }
-
-    // Atualiza atributos nos elementos <source> dentro de <picture>
-    $(el)
-      .find("source")
-      .each((i, sourceEl) => {
-        const srcSetSource = $(sourceEl).attr("srcset");
-        if (srcSetSource) {
-          sources =
-            sources +
-            `\n
-    import srcSetSrc_${i} from '${cleanPath("./" + srcSetSource)}';
-     sources.push(["${srcSetSource}", srcSetSrc_${i}]);
-    \n`;
-          $(sourceEl).attr("srcset", cleanPath(prefix + srcSetSource));
+const wax = handlebarsWax(Handlebars).helpers(helpers);
+const isProduction =  process.env.NODE_ENV === "production";
+const transformer = new Transformer({
+  async transform({ asset, options }) {
+    let content = await asset.getCode();
+    let defaultMayaIgnoreList;
+    try {
+      const modulePath = require.resolve(
+        "parcel-reporter-maya/defaultIgnoreList.js",
+        {
+          paths: [asset.filePath, __dirname],
         }
-      });
-  });
+      );
+      defaultMayaIgnoreList = require(modulePath);
+    } catch (err) {
+      console.warn(
+        "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-reporter-maya"
+      );
+    }
 
-  // Retorna o HTML modificado
-  return { html: $.html(), sources };
-}
-module.exports = addDep;
+    const projectRoot = findProjectRoot(null, options);
+    const mayaConfigs = getMayaSettings(projectRoot);
+    const mayaConfig =
+      mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
+        ? mayaConfigs[0]
+        : {};
+    const mayaIgnoreList =
+      mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
+        ? mayaConfig.ignoreList
+        : [];
+
+    if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
+      mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
+    }
+    const mayaHashSalt = mayaConfig.hashSalt ? mayaConfig.hashSalt.toString() : "";
+    const {html, sources} = addDep(content, asset);
+    console.log(sources);
+    content = isProduction ? htmlObfuscateClasses(html, mayaIgnoreList, mayaHashSalt) : html;
+    
+    try {
+      content =
+      isProduction
+          ? minify(content, {
+              collapseWhitespace: true,
+              removeComments: true,
+              removeRedundantAttributes: true,
+              useShortDoctype: true,
+              removeEmptyAttributes: false,
+              removeOptionalTags: true,
+              minifyJS: true,
+              minifyCSS: true,
+              caseSensitive: true,
+              keepClosingSlash: true,
+              html5: true,
+            })
+          : content;
+
+      const precompiled = Handlebars.precompile(content, {
+        knownHelpers: helpers,
+      });
+      asset.setCode(`
+      let sources = [];
+      ${sources}
+      let tpl = ${precompiled};
+      console.log(sources);
+      export {tpl, sources};`);
+      asset.type = "js";
+    } catch (err) {
+      throw new Error(
+        "--parcel-transformer-hbs: Error compiling template.",
+        err
+      );
+    }
+
+    return [asset];
+  },
+});
+
+module.exports = transformer;

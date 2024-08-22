@@ -7,19 +7,19 @@ function addDep(html, asset, prefix = "___static/") {
 
   // Selecione todas as tags de imagem e pictures
   const imageElements = $("img, picture");
-
+  var sources = "";
   // Itera sobre cada elemento e atualiza atributos
   imageElements.each((i, el) => {
     const src = $(el).attr("src");
     const dataSrc = $(el).attr("data-src");
     const srcSet = $(el).attr("srcset");
-    let sources = "";
+   
     if (src) {
       sources =
         sources +
         `\n
       import src_${i} from '${cleanPath("./" + src)}';
-       sources[${src}] = src_${i};
+       sources.push(["${src}", src_${i}]);
       \n`;
       $(el).attr("src", cleanPath(prefix + src));
     }
@@ -28,7 +28,7 @@ function addDep(html, asset, prefix = "___static/") {
         sources +
         `\n
     import dataSrc_${i} from '${cleanPath("./" + dataSrc)}';
-     sources[${dataSrc}] =  dataSrc_${i};
+     sources.push(["${dataSrc}", dataSrc_${i}]);
     \n`;
       $(el).attr("src", cleanPath(prefix + dataSrc));
       $(el).attr("data-src", cleanPath(prefix + dataSrc));
@@ -38,7 +38,7 @@ function addDep(html, asset, prefix = "___static/") {
         sources +
         `\n
     import srcSet_${i} from '${cleanPath("./" + srcSet)}';
-     sources[${srcSet}] =  srcSet_${i};
+     sources.push(["${srcSet}", srcSet_${i}]);
     \n`;
       $(el).attr("srcset", cleanPath(prefix + srcSet));
     }
@@ -53,7 +53,7 @@ function addDep(html, asset, prefix = "___static/") {
             sources +
             `\n
     import srcSetSrc_${i} from '${cleanPath("./" + srcSetSource)}';
-     sources[${srcSetSource}] =  srcSetSrc_${i};
+     sources.push(["${srcSetSource}", srcSetSrc_${i}]);
     \n`;
           $(sourceEl).attr("srcset", cleanPath(prefix + srcSetSource));
         }
