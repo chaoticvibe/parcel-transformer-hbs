@@ -70,6 +70,11 @@ const transformer = new Transformer({
       let sources = [];
       ${sources}
       let tpl = ${precompiled};
+      for(let i = 0; i < sources.length; i++){
+        let dep = sources[i];
+        let url = dep[1].replace(/https?:\/\/[^\/]+\/?/, '');
+        sources[i][1] = url;
+      }
       console.log(sources);
       export {tpl, sources};`);
       asset.type = "js";
