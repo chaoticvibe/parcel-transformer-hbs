@@ -14,7 +14,7 @@ const transformer = new Transformer({
     let defaultMayaIgnoreList;
     try {
       const modulePath = require.resolve(
-        "parcel-reporter-maya/defaultIgnoreList.js",
+        "parcel-transformer-maya/defaultIgnoreList.js",
         {
           paths: [asset.filePath, __dirname],
         }
@@ -22,7 +22,7 @@ const transformer = new Transformer({
       defaultMayaIgnoreList = require(modulePath);
     } catch (err) {
       console.warn(
-        "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-reporter-maya"
+        "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
       );
     }
 
