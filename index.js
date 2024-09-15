@@ -213,11 +213,16 @@ module.exports = new Transformer({
     }
 
     let isJsModule =
-      asset.filePath.endsWith(".hbs") ||
-      asset.filePath.endsWith(".handlebars");
+      asset.filePath.endsWith(".hbs") || asset.filePath.endsWith(".handlebars");
+    const data = Object.assign(
+      {},
+      {
+        NODE_ENV: process.env.NODE_ENV,
+      }
+    );
     const result = wax.compile(content)(data);
     content = result;
-   
+
     let contentSources = "";
 
     if (isProduction) {
