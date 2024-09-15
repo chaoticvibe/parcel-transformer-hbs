@@ -1,46 +1,104 @@
 const minify = require("html-minifier").minify;
 
-const path = require('path');
-const fs = require('fs');
+const path = require("path");
+const fs = require("fs");
 const fsp = fs.promises;
-const { Transformer } = require('@parcel/plugin');
-const Handlebars = require('handlebars');
-const handlebarsWax = require('handlebars-wax');
-const handlebarsLayouts = require('handlebars-layouts');
-const handlebarsHelpers = require('handlebars-helpers');
-const glob = require('glob');
-const fastGlob = require('fast-glob');
-const { minify } = require('html-minifier');
-
-const addDep = require('./addDep');
-const { getMayaSettings, findProjectRoot, htmlObfuscateClasses } = require('./utils');
-const isProduction =  process.env.NODE_ENV === "production";
+const { Transformer } = require("@parcel/plugin");
+const Handlebars = require("handlebars");
+const handlebarsWax = require("handlebars-wax");
+const handlebarsLayouts = require("handlebars-layouts");
+const handlebarsHelpers = require("handlebars-helpers");
+const glob = require("glob");
+const fastGlob = require("fast-glob");
+const { minify } = require("html-minifier");
+const addDep = require("./addDep");
+const {
+  getMayaSettings,
+  findProjectRoot,
+  htmlObfuscateClasses,
+} = require("./utils");
+const isProduction = process.env.NODE_ENV === "production";
 // Configuração padrão de diretórios Handlebars
 const defaultConfig = {
-  data: 'src/markup/data',
-  decorators: 'src/markup/decorators',
-  helpers: 'src/markup/helpers',
-  layouts: 'src/markup/layouts',
-  partials: 'src/markup/partials',
-  lang: 'src/lang' // Pasta onde os arquivos de idiomas estarão
+  data: "src/markup/data",
+  decorators: "src/markup/decorators",
+  helpers: "src/markup/helpers",
+  layouts: "src/markup/layouts",
+  partials: "src/markup/partials",
+  lang: "src/lang", // Pasta onde os arquivos de idiomas estarão
 };
 
 function toArray(value) {
-  if (typeof value === 'undefined') {
+  if (typeof value === "undefined") {
+    return [];
+  }
+  if (!value) {
     return [];
   }
   return Array.isArray(value) ? value : [value];
 }
+function getFilteredFiles(files) {
+  return files.filter((file) => !/\.(hbs|handlebars)\.(html|htm)$/.test(file));
+}
+// Function to extract partials from a Handlebars template
+function extractPartials(templateContent) {
+  const partials = [];
+
+  // Define a regex pattern to find all partials in the template
+  const partialPattern = /{{>\s*([\w-]+)\s*}}/g;
+  let match;
+
+  while ((match = partialPattern.exec(templateContent)) !== null) {
+    partials.push(match[1]);
+  }
+
+  return partials;
+}
+
+function extractLayouts(templateContent) {
+  const layoutRegex = /{{#layout\s+"([^"]+)"}}.*?{{\/layout}}/gs;
+
+  // Encontrar todos os matches
+  const matches = [];
+  let match;
+  while ((match = layoutRegex.exec(templateContent)) !== null) {
+    matches.push(match[1]);
+  }
+
+  return matches;
+}
+
+// Function to map partial names to file paths
+function mapPartialsToFilePaths(partials, baseDir) {
+  return partials.reduce((map, partial) => {
+    const partialPath = path.join(baseDir, `${partial}.html`);
+    map[partial] = partialPath;
+    return map;
+  }, {});
+}
+
+function partialsToFilePaths(partials, baseDir) {
+  let partialsMap = mapPartialsToFilePaths(partials, baseDir);
+  if (!Object.keys(partialsMap).length) {
+    return [];
+  }
+  return Object.values(partialsMap);
+}
+function layoutsToFilePaths(partials, baseDir) {
+  return partialsToFilePaths(partials, baseDir);
+}
+
+// Main function to process a Handlebars template file
 
 async function loadLanguages(langDir, cwd) {
   // Obtemos os arquivos de idioma no diretório
-  const langFiles = await fastGlob(`${langDir}/*.json`, {cwd});
+  const langFiles = await fastGlob(`${langDir}/*.json`, { cwd });
 
   // Mapeamos para criar promessas de leitura dos arquivos
   const languagePromises = langFiles.map(async (file) => {
-    const langKey = path.basename(file, '.json');
+    const langKey = path.basename(file, ".json");
     const filePath = path.join(langDir, file);
-    const fileContent = await fsp.readFile(filePath, 'utf8');
+    const fileContent = await fsp.readFile(filePath, "utf8");
     return { langKey, content: JSON.parse(fileContent) };
   });
 
@@ -57,22 +115,25 @@ async function loadLanguages(langDir, cwd) {
 }
 module.exports = new Transformer({
   async loadConfig({ config }) {
-    const configFile = await config.getConfig([
-      'handlebars.config.js',
-      'handlebars.config.json',
-      'hbs.config.js',
-      'hbs.config.json'
-    ], {});
+    const configFile = await config.getConfig(
+      [
+        "handlebars.config.js",
+        "handlebars.config.json",
+        "hbs.config.js",
+        "hbs.config.json",
+      ],
+      {}
+    );
 
     if (configFile) {
-      const isJS = path.extname(configFile.filePath) === '.js';
+      const isJS = path.extname(configFile.filePath) === ".js";
       if (isJS) {
         config.invalidateOnStartup();
       }
 
       return {
         ...defaultConfig,
-        ...configFile.contents
+        ...configFile.contents,
       };
     }
 
@@ -80,32 +141,48 @@ module.exports = new Transformer({
   },
 
   async transform({ asset, config, options }) {
-    const extname = path.extname(asset.filePath).toLowerCase();
     let content = await asset.getCode();
     const projectRoot = findProjectRoot(null, options);
     // Verificação para arquivos com sufixo .hbs.html ou .hbs.htm
-    if (asset.filePath.endsWith('.hbs.html') || asset.filePath.endsWith('.hbs.htm')) {
+    if (
+      asset.filePath.endsWith(".hbs.html") ||
+      asset.filePath.endsWith(".hbs.htm")
+    ) {
       let defaultMayaIgnoreList;
       try {
-        const modulePath = require.resolve('parcel-transformer-maya/defaultIgnoreList.js', {
-          paths: [asset.filePath, __dirname],
-        });
+        const modulePath = require.resolve(
+          "parcel-transformer-maya/defaultIgnoreList.js",
+          {
+            paths: [asset.filePath, __dirname],
+          }
+        );
         defaultMayaIgnoreList = require(modulePath);
       } catch (err) {
-        console.warn("--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya");
+        console.warn(
+          "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
+        );
       }
 
-    
       const mayaConfigs = getMayaSettings(projectRoot);
-      const mayaConfig = mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0] ? mayaConfigs[0] : {};
-      const mayaIgnoreList = mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList) ? mayaConfig.ignoreList : [];
+      const mayaConfig =
+        mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
+          ? mayaConfigs[0]
+          : {};
+      const mayaIgnoreList =
+        mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
+          ? mayaConfig.ignoreList
+          : [];
 
       if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
         mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
       }
-      const mayaHashSalt = mayaConfig.hashSalt ? mayaConfig.hashSalt.toString() : "";
+      const mayaHashSalt = mayaConfig.hashSalt
+        ? mayaConfig.hashSalt.toString()
+        : "";
       const { html, sources } = addDep(content, asset);
-      content = isProduction ? htmlObfuscateClasses(html, mayaIgnoreList, mayaHashSalt) : html;
+      content = isProduction
+        ? htmlObfuscateClasses(html, mayaIgnoreList, mayaHashSalt)
+        : html;
 
       try {
         content = isProduction
@@ -138,34 +215,72 @@ module.exports = new Transformer({
           sources[i][1] = url;
         }
         export {tpl, sources};`);
-        asset.type = 'js';
+        asset.type = "js";
       } catch (err) {
-        throw new Error("--parcel-transformer-hbs: Error compiling template.", err);
+        throw new Error(
+          "--parcel-transformer-hbs: Error compiling template.",
+          err
+        );
       }
 
       return [asset];
     }
 
     // Caso padrão para arquivos .htm e .html
-    const { langFiles, languages } = await loadLanguages(config.lang, projectRoot);
+    const { langFiles, languages } = await loadLanguages(
+      config.lang,
+      projectRoot
+    );
 
     const wax = handlebarsWax(Handlebars);
     wax.helpers(handlebarsHelpers);
     wax.helpers(handlebarsLayouts);
+    const partialsDir = path.join(
+      projectRoot,
+      String(config.partials ? config.partials : "src/views/partials/")
+    );
+    const layoutsDir = path.join(
+      projectRoot,
+      String(config.layouts ? config.layouts : "src/views/layouts/")
+    );
 
-    toArray(config.helpers).forEach(x => wax.helpers(`${x}/**/*.js`));
-    toArray(config.data).forEach(x => wax.data(`${x}/**/*.{json,js}`));
-    toArray(config.decorators).forEach(x => wax.decorators(`${x}/**/*.js`));
-    toArray(config.layouts).forEach(x => wax.partials(`${x}/**/*.{htm,html}`));
-    toArray(config.partials).forEach(x => wax.partials(`${x}/**/*.{htm,html}`));
+    ["data", "decorators", "helpers", "layouts", "partials"].forEach(
+      (value) => {
+        let sources = toArray(config[value]);
+        for (let s = 0; s < sources.length; s++) {
+          let source = sources[s];
+          sources[s] = path.join(projectRoot, source);
+        }
+        config[value] = sources;
+      }
+    );
 
-    const dependencies = [
-      toArray(config.helpers).map(x => `${x}/**/*.js`),
-      toArray(config.data).map(x => `${x}/**/*.{json,js}`),
-      toArray(config.decorators).map(x => `${x}/**/*.js`),
-      toArray(config.layouts).map(x => `${x}/**/*.{htm,html}`),
-      toArray(config.partials).map(x => `${x}/**/*.{htm,html}`)
-    ].flat().map(g => glob.sync(g)).flat();
+    config.helpers.forEach((x) => wax.helpers(`${x}/**/*.js`));
+    config.data.forEach((x) => wax.data(`${x}/**/*.{json,js}`));
+    config.decorators.forEach((x) => wax.decorators(`${x}/**/*.js`));
+
+    const partials = partialsToFilePaths(extractPartials(content), partialsDir);
+    const layouts = layoutsToFilePaths(extractLayouts(content), layoutsDir);
+
+    const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html}`);
+    const layoutsFiles = getFilteredFiles(await fastGlob(layoutsGlob));
+    layoutsFiles.forEach((file) => wax.partials(file));
+    const partialsGlob = config.partials.map((x) => `${x}/**/*.{htm,html}`);
+    const partialsFiles = getFilteredFiles(await fastGlob(partialsGlob));
+    partialsFiles.forEach((file) => wax.partials(file));
+
+    const dependencies = await Promise.all(
+      [
+        config.helpers.map((x) => `${x}/**/*.js`),
+        config.data.map((x) => `${x}/**/*.{json,js}`),
+        config.decorators.map((x) => `${x}/**/*.js`),
+      ]
+        .flat()
+        .map((g) => fastGlob(g, { dot: true }))
+    ).flat();
+
+    dependencies.push(...layouts);
+    dependencies.push(...partials);
 
     for (const langFile of langFiles) {
       asset.invalidateOnFileChange(langFile);
@@ -174,31 +289,35 @@ module.exports = new Transformer({
     for (const dep of dependencies) {
       asset.addDependency({
         specifier: dep,
-        specifierType: 'file',
+        specifierType: "file",
         resolveFrom: asset.filePath,
       });
     }
 
+    // Gerar arquivos HTML por idioma
+    const childAssets = [];
+    for (const [lang, langData] of Object.entries(languages)) {
+      const data = Object.assign({}, langData, {
+        NODE_ENV: process.env.NODE_ENV,
+      });
+      const result = wax.compile(content)(data);
 
-     // Gerar arquivos HTML por idioma
-     const childAssets = [];
-     for (const [lang, langData] of Object.entries(languages)) {
-       const data = Object.assign({}, langData, { NODE_ENV: process.env.NODE_ENV });
-       const result = wax.compile(content)(data);
- 
-       const langAsset = await asset.addDependency({
-        specifier: path.join(path.dirname(asset.filePath), `index.${lang}.html`),
-        specifierType: 'file',
+      const langAsset = await asset.addDependency({
+        specifier: path.join(
+          path.dirname(asset.filePath),
+          `index.${lang}.html`
+        ),
+        specifierType: "file",
         resolveFrom: asset.filePath,
       });
       console.log(langAsset);
       langAsset.setCode(result);
-      langAsset.type = 'html';
+      langAsset.type = "html";
       childAssets.push(langAsset);
-     }
-    
-     console.log("childAssets");
-     console.log(childAssets);
+    }
+
+    console.log("childAssets");
+    console.log(childAssets);
     return [childAssets];
-  }
+  },
 });
