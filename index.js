@@ -1,7 +1,7 @@
 const minify = require("html-minifier").minify;
 
 const path = require("path");
-const fs = require("fs");
+const fs = require("fs-extra");
 const fsp = fs.promises;
 const { Transformer } = require("@parcel/plugin");
 const Handlebars = require("handlebars");
@@ -10,7 +10,6 @@ const handlebarsLayouts = require("handlebars-layouts");
 const handlebarsHelpers = require("handlebars-helpers");
 const glob = require("glob");
 const fastGlob = require("fast-glob");
-const { minify } = require("html-minifier");
 const addDep = require("./addDep");
 const {
   getMayaSettings,
@@ -92,13 +91,11 @@ function layoutsToFilePaths(partials, baseDir) {
 
 async function loadLanguages(langDir, cwd) {
   // Obtemos os arquivos de idioma no diretório
-  const langFiles = await fastGlob(`${langDir}/*.json`, { cwd });
-
+  const langFiles = await fastGlob(`${langDir}/*.json`);
   // Mapeamos para criar promessas de leitura dos arquivos
   const languagePromises = langFiles.map(async (file) => {
     const langKey = path.basename(file, ".json");
-    const filePath = path.join(langDir, file);
-    const fileContent = await fsp.readFile(filePath, "utf8");
+    const fileContent = await fsp.readFile(file, "utf8");
     return { langKey, content: JSON.parse(fileContent) };
   });
 
@@ -144,97 +141,18 @@ module.exports = new Transformer({
     let content = await asset.getCode();
     const projectRoot = findProjectRoot(null, options);
     // Verificação para arquivos com sufixo .hbs.html ou .hbs.htm
-    if (
-      asset.filePath.endsWith(".hbs.html") ||
-      asset.filePath.endsWith(".hbs.htm")
-    ) {
-      let defaultMayaIgnoreList;
-      try {
-        const modulePath = require.resolve(
-          "parcel-transformer-maya/defaultIgnoreList.js",
-          {
-            paths: [asset.filePath, __dirname],
-          }
-        );
-        defaultMayaIgnoreList = require(modulePath);
-      } catch (err) {
-        console.warn(
-          "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
-        );
-      }
-
-      const mayaConfigs = getMayaSettings(projectRoot);
-      const mayaConfig =
-        mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
-          ? mayaConfigs[0]
-          : {};
-      const mayaIgnoreList =
-        mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
-          ? mayaConfig.ignoreList
-          : [];
-
-      if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
-        mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
-      }
-      const mayaHashSalt = mayaConfig.hashSalt
-        ? mayaConfig.hashSalt.toString()
-        : "";
-      const { html, sources } = addDep(content, asset);
-      content = isProduction
-        ? htmlObfuscateClasses(html, mayaIgnoreList, mayaHashSalt)
-        : html;
-
-      try {
-        content = isProduction
-          ? minify(content, {
-              collapseWhitespace: true,
-              removeComments: true,
-              removeRedundantAttributes: true,
-              useShortDoctype: true,
-              removeEmptyAttributes: false,
-              removeOptionalTags: true,
-              minifyJS: true,
-              minifyCSS: true,
-              caseSensitive: true,
-              keepClosingSlash: true,
-              html5: true,
-            })
-          : content;
-
-        const precompiled = Handlebars.precompile(content, {
-          knownHelpers: handlebarsHelpers,
-        });
-        asset.setCode(`
-        let sources = [];
-        ${sources}
-        let regex = new RegExp('https?://[^/]+/?');
-        let tpl = ${precompiled};
-        for(let i = 0; i < sources.length; i++){
-          let dep = sources[i];
-          let url = dep[1].replace(regex, '');
-          sources[i][1] = url;
-        }
-        export {tpl, sources};`);
-        asset.type = "js";
-      } catch (err) {
-        throw new Error(
-          "--parcel-transformer-hbs: Error compiling template.",
-          err
-        );
-      }
-
-      return [asset];
-    }
 
     // Caso padrão para arquivos .htm e .html
+    /*
     const { langFiles, languages } = await loadLanguages(
       config.lang,
       projectRoot
     );
-
+    */
     const wax = handlebarsWax(Handlebars);
     wax.helpers(handlebarsHelpers);
     wax.helpers(handlebarsLayouts);
+
     const partialsDir = path.join(
       projectRoot,
       String(config.partials ? config.partials : "src/views/partials/")
@@ -261,7 +179,6 @@ module.exports = new Transformer({
 
     const partials = partialsToFilePaths(extractPartials(content), partialsDir);
     const layouts = layoutsToFilePaths(extractLayouts(content), layoutsDir);
-
     const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html}`);
     const layoutsFiles = getFilteredFiles(await fastGlob(layoutsGlob));
     layoutsFiles.forEach((file) => wax.partials(file));
@@ -269,55 +186,167 @@ module.exports = new Transformer({
     const partialsFiles = getFilteredFiles(await fastGlob(partialsGlob));
     partialsFiles.forEach((file) => wax.partials(file));
 
-    const dependencies = await Promise.all(
-      [
-        config.helpers.map((x) => `${x}/**/*.js`),
-        config.data.map((x) => `${x}/**/*.{json,js}`),
-        config.decorators.map((x) => `${x}/**/*.js`),
-      ]
-        .flat()
-        .map((g) => fastGlob(g, { dot: true }))
-    ).flat();
+    const depPatterns = [
+      config.helpers.map((x) => `${x}/**/*.js`),
+      config.data.map((x) => `${x}/**/*.{json,js}`),
+      config.decorators.map((x) => `${x}/**/*.js`),
+    ].flat(); // Achata os padrões glob
+
+    // Use fast-glob para buscar arquivos de forma assíncrona
+    const depFileArray = await Promise.all(
+      depPatterns.map((pattern) => fastGlob(pattern, { dot: true }))
+    );
+
+    // Achata o array de arrays de resultados
+    const dependencies = toArray(depFileArray).flat();
 
     dependencies.push(...layouts);
     dependencies.push(...partials);
 
+    /*
     for (const langFile of langFiles) {
       asset.invalidateOnFileChange(langFile);
     }
+    */
 
     for (const dep of dependencies) {
-      asset.addDependency({
-        specifier: dep,
-        specifierType: "file",
-        resolveFrom: asset.filePath,
-      });
+      asset.invalidateOnFileChange(dep);
     }
 
-    // Gerar arquivos HTML por idioma
-    const childAssets = [];
+    let isJsModule =
+      asset.filePath.endsWith(".hbs") ||
+      asset.filePath.endsWith(".handlebars");
+    const result = wax(content)(data);
+    content = result;
+   
+    let contentSources = "";
+
+    if (isProduction) {
+      const mayaConfigs = getMayaSettings(projectRoot);
+      const mayaConfig =
+        mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
+          ? mayaConfigs[0]
+          : {};
+      const mayaIgnoreList =
+        mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
+          ? mayaConfig.ignoreList
+          : [];
+
+      if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
+        mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
+      }
+      const mayaHashSalt = mayaConfig.hashSalt
+        ? mayaConfig.hashSalt.toString()
+        : "";
+      const { html, sources } = addDep(content, asset);
+      contentSources = sources;
+      content = htmlObfuscateClasses(html, mayaIgnoreList, mayaHashSalt);
+    }
+
+    if (!isJsModule) {
+      asset.setCode(content);
+      return [asset];
+    }
+
+    let defaultMayaIgnoreList;
+    try {
+      const modulePath = require.resolve(
+        "parcel-transformer-maya/defaultIgnoreList.js",
+        {
+          paths: [asset.filePath, __dirname],
+        }
+      );
+      defaultMayaIgnoreList = require(modulePath);
+    } catch (err) {
+      console.warn(
+        "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
+      );
+    }
+
+    try {
+      content = content.replace(/({:@@|@@:}|{@:|@})/g, (match) => {
+        switch (match) {
+          case "{:@@":
+            return "{{{";
+          case "@@:}":
+            return "}}}";
+          case "{@:":
+            return "{{";
+          case "@}":
+            return "}}";
+          default:
+            return match;
+        }
+      });
+      content = isProduction
+        ? minify(content, {
+            continueOnParseError: true,
+            collapseWhitespace: true,
+            removeComments: true,
+            removeRedundantAttributes: true,
+            useShortDoctype: true,
+            removeEmptyAttributes: false,
+            removeOptionalTags: true,
+            minifyJS: true,
+            minifyCSS: true,
+            caseSensitive: true,
+            keepClosingSlash: true,
+            html5: true,
+          })
+        : content;
+
+      const precompiled = Handlebars.precompile(content, {
+        knownHelpers: handlebarsHelpers,
+      });
+      asset.setCode(`
+        let sources = [];
+        ${contentSources}
+        let regex = new RegExp('https?://[^/]+/?');
+        let tpl = ${precompiled};
+        for(let i = 0; i < sources.length; i++){
+          let dep = sources[i];
+          let url = dep[1].replace(regex, '');
+          sources[i][1] = url;
+        }
+        export {tpl, sources};`);
+      asset.type = "js";
+    } catch (err) {
+      throw new Error(
+        "--parcel-transformer-hbs: Error compiling template.",
+        err
+      );
+    }
+
+    return [asset];
+
+    /*
     for (const [lang, langData] of Object.entries(languages)) {
       const data = Object.assign({}, langData, {
         NODE_ENV: process.env.NODE_ENV,
       });
       const result = wax.compile(content)(data);
+      const depName = path.basename(asset.filePath, ".html") + `.${lang}.html`;
+      const outputPath = path.join(
+        projectRoot, "dist2", (path.dirname(asset.filePath).replace(projectRoot, "")),
+         depName
+       );
+       const distPath2 = path.join(
+          (path.dirname(asset.filePath).replace(projectRoot, "")),
+         depName
+       );
+       console.log(distPath2);
+       const distPath = path.join(
+         projectRoot, "dist2",
+       );
+       console.log(outputPath);
+       await fs.ensureFileSync(outputPath);
+       await fsp.writeFile(outputPath, result); 
 
-      const langAsset = await asset.addDependency({
-        specifier: path.join(
-          path.dirname(asset.filePath),
-          `index.${lang}.html`
-        ),
-        specifierType: "file",
-        resolveFrom: asset.filePath,
+      childAssets.push({
+        filePath: outputPath,
+        type: "html",
       });
-      console.log(langAsset);
-      langAsset.setCode(result);
-      langAsset.type = "html";
-      childAssets.push(langAsset);
-    }
-
-    console.log("childAssets");
-    console.log(childAssets);
-    return [childAssets];
+    }    
+  */
   },
 });
