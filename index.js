@@ -152,7 +152,7 @@ module.exports = new Transformer({
     const wax = handlebarsWax(Handlebars);
     wax.helpers(handlebarsHelpers);
     wax.helpers(handlebarsLayouts);
-
+    console.log(wax);
     const partialsDir = path.join(
       projectRoot,
       String(config.partials ? config.partials : "src/views/partials/")
