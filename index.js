@@ -26,7 +26,9 @@ const defaultConfig = {
   partials: "src/markup/partials",
   lang: "src/lang", // Pasta onde os arquivos de idiomas estarão
 };
-
+var wax = handlebarsWax(Handlebars);
+wax.helpers(handlebarsHelpers);
+wax.helpers(handlebarsLayouts);
 function toArray(value) {
   if (typeof value === "undefined") {
     return [];
@@ -149,10 +151,7 @@ module.exports = new Transformer({
       projectRoot
     );
     */
-    const wax = handlebarsWax(Handlebars);
-    wax.helpers(handlebarsHelpers);
-    wax.helpers(handlebarsLayouts);
-    console.log(wax);
+ 
     const partialsDir = path.join(
       projectRoot,
       String(config.partials ? config.partials : "src/views/partials/")
