@@ -8,7 +8,6 @@ const Handlebars = require("handlebars");
 const handlebarsWax = require("handlebars-wax");
 const handlebarsLayouts = require("handlebars-layouts");
 const handlebarsHelpers = require("handlebars-helpers");
-const glob = require("glob");
 const fastGlob = require("fast-glob");
 const addDep = require("./addDep");
 const {
@@ -272,20 +271,6 @@ module.exports = new Transformer({
     }
 
     try {
-      content = content.replace(/({:@@|@@:}|{@:|@})/g, (match) => {
-        switch (match) {
-          case "{:@@":
-            return "{{{";
-          case "@@:}":
-            return "}}}";
-          case "{@:":
-            return "{{";
-          case "@}":
-            return "}}";
-          default:
-            return match;
-        }
-      });
       content = isProduction
         ? minify(content, {
             continueOnParseError: true,
