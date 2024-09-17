@@ -223,10 +223,11 @@ module.exports = new Transformer({
     content = result;
 
     let contentSources = "";
-    const { html, sources } = addDep(content, asset);
-    contentSources = sources;
-    content = html;
-
+    if (isJsModule) {
+      const { html, sources } = addDep(content, asset);
+      contentSources = sources;
+      content = html;
+    }
 
     if (isProduction) {
       const mayaConfigs = getMayaSettings(projectRoot);
@@ -245,10 +246,9 @@ module.exports = new Transformer({
       const mayaHashSalt = mayaConfig.hashSalt
         ? mayaConfig.hashSalt.toString()
         : "";
-       
+
       content = htmlObfuscateClasses(content, mayaIgnoreList, mayaHashSalt);
     }
- 
 
     if (!isJsModule) {
       asset.setCode(content);
