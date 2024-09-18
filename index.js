@@ -291,20 +291,7 @@ module.exports = new Transformer({
       return [asset];
     }
 
-    let defaultMayaIgnoreList;
-    try {
-      const modulePath = require.resolve(
-        "parcel-transformer-maya/defaultIgnoreList.js",
-        {
-          paths: [asset.filePath, __dirname],
-        }
-      );
-      defaultMayaIgnoreList = require(modulePath);
-    } catch (err) {
-      console.warn(
-        "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
-      );
-    }
+   
 
     try {
       content = isProduction
