@@ -197,8 +197,7 @@ module.exports = new Transformer({
       const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html,hbs}`);
       layoutsGlob.forEach((file) => wax.partials(file));
       const partialsGlob = config.partials.map((x) => `${x}/**/*.{html,html,hbs}`);
-      const partialsFiles = getFilteredFiles(await fastGlob(...partialsGlob));
-      partialsFiles.forEach((file) => wax.partials(file));
+      partialsGlob.forEach((file) => wax.partials(file));
 
       const depPatterns = [
         config.helpers.map((x) => `${x}/**/*.js`),
