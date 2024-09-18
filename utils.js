@@ -3,7 +3,8 @@ const path = require("path");
 const farmhash = require("farmhash");
 const htmlTags = require("html-tags");
 const cheerio = require("cheerio");
-const replaceClasses = require("replace-classes");
+const isBlank = require('is-blank');
+
 function loadUserConfig() {
   const file = path.resolve(process.cwd(), "handlebars.config.js");
   const flavors = [
@@ -89,7 +90,7 @@ function createGlobIgnoringFunction(patterns) {
 }
 const listAllHtmlClasses = (html) => {
   try {
-    const $ = cheerio.loadBuffer(Buffer.from(html), );
+    const $ = cheerio.loadBuffer(Buffer.from(html), { xml: { xmlMode: false, decodeEntities: false }});
     const classes = new Set();
 
     // Itera sobre todos os elementos que possuem um atributo 'class'
@@ -109,6 +110,32 @@ const listAllHtmlClasses = (html) => {
     return [];
   }
 };
+var isBlank = require('is-blank')
+
+function replaceClasses (html, classes) {
+  if (typeof html !== 'string' || typeof classes !== 'object') {
+    throw new TypeError('replace-classes expected an html string and a class object')
+  }
+
+  if (isBlank(classes)) {
+    return html
+  }
+
+  var html = cheerio.load(html, { xml: { xmlMode: false, decodeEntities: false }})
+
+  html('*').each(function (_, element) {
+    var _this = html(this)
+
+    Object.keys(classes).forEach(function (klass) {
+      if (_this.hasClass(klass)) {
+        _this.removeClass(klass)
+        _this.addClass(classes[klass])
+      }
+    })
+  })
+
+  return html.html()
+}
 const htmlObfuscateClasses = (
   html = "",
   mayaIgnoreList = [],
