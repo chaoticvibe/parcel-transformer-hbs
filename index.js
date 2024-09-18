@@ -243,10 +243,6 @@ module.exports = new Transformer({
         content = html;
       }
 
-      if (isProduction) {
-
-        content = htmlObfuscateClasses(content, [], "llll");
-      }
 
       if (!isJsModule) {
         await asset.setCode(content);
