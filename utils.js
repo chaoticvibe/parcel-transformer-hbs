@@ -110,7 +110,6 @@ const listAllHtmlClasses = (html) => {
     return [];
   }
 };
-var isBlank = require('is-blank')
 
 function replaceClasses (html, classes) {
   if (typeof html !== 'string' || typeof classes !== 'object') {
