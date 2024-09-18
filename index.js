@@ -147,7 +147,7 @@ module.exports = new Transformer({
         "*": function (...args) {
           const options = args[args.length - 1]; // 'options' contém informações do bloco
           const name = options.name || args[0]; // Captura o nome do bloco ou expressão
-
+          console.log(name);
           // Se for um bloco que começa com './', processa normalmente
           if (typeof name === "string" && name.startsWith(".")) {
             return options.fn ? options.fn(this) : ""; // Processa blocos normalmente
@@ -163,7 +163,7 @@ module.exports = new Transformer({
               return new Handlebars.SafeString(`{{${name}}}`);
             }
           }
-        },
+        },waxwax
       });
       const partialsDir = path.join(
         projectRoot,
