@@ -280,11 +280,7 @@ module.exports = new Transformer({
             ? mayaConfig.hashSalt.toString()
             : "";
 
-        content = htmlObfuscateClasses(
-          content,
-          [],
-          mayaHashSalt
-        );
+        content = htmlObfuscateClasses(content, [], mayaHashSalt);
       }
 
       if (!isJsModule) {
@@ -292,23 +288,21 @@ module.exports = new Transformer({
         return [asset];
       }
       if (isProduction) {
-     
-      content = minify(content, {
-        continueOnParseError: true,
-        collapseWhitespace: true,
-        removeComments: true,
-        removeRedundantAttributes: true,
-        useShortDoctype: true,
-        removeEmptyAttributes: false,
-        removeOptionalTags: true,
-        minifyJS: true,
-        minifyCSS: true,
-        caseSensitive: true,
-        keepClosingSlash: true,
-        html5: true,
-      }); 
-    }
-
+        content = minify(content, {
+          continueOnParseError: true,
+          collapseWhitespace: true,
+          removeComments: true,
+          removeRedundantAttributes: true,
+          useShortDoctype: true,
+          removeEmptyAttributes: false,
+          removeOptionalTags: true,
+          minifyJS: true,
+          minifyCSS: true,
+          caseSensitive: true,
+          keepClosingSlash: true,
+          html5: true,
+        });
+      }
 
       const precompiled = Handlebars.precompile(content, {
         knownHelpers: handlebarsHelpers,
