@@ -143,7 +143,7 @@ module.exports = new Transformer({
       const wax = handlebarsWax(Handlebars);
       wax.helpers(handlebarsHelpers);
       wax.helpers(handlebarsLayouts);
-      /* wax.helpers({
+      wax.helpers({
         "*": function (...args) {
           const options = args[args.length - 1]; // 'options' contém informações do bloco
           const name = options.name || args[0]; // Captura o nome do bloco ou expressão
@@ -165,7 +165,6 @@ module.exports = new Transformer({
           }
         },
       });
-      */
       const partialsDir = path.join(
         projectRoot,
         String(config.partials ? config.partials : "src/views/partials/")
