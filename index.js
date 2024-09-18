@@ -15,7 +15,6 @@ const {
   findProjectRoot,
   htmlObfuscateClasses,
 } = require("./utils");
-const { constants } = require("buffer");
 const isProduction = process.env.NODE_ENV === "production";
 // Configuração padrão de diretórios Handlebars
 const defaultConfig = {
@@ -139,9 +138,7 @@ module.exports = new Transformer({
 
   async transform({ asset, config, options }) {
     let content = await asset.getCode();
-    console.log(content);
     const projectRoot = findProjectRoot(null, options);
-    console.log(projectRoot);
     try {
       const wax = handlebarsWax(Handlebars);
       wax.helpers(handlebarsHelpers);
