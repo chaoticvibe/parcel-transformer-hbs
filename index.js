@@ -140,7 +140,7 @@ module.exports = new Transformer({
     let content = await asset.getCode();
     const projectRoot = findProjectRoot(null, options);
     try {
-      const wax = handlebarsWax(Handlebars);
+      const wax = handlebarsWax(Handlebars, {cwd:projectRoot});
       wax.helpers(handlebarsHelpers);
       wax.helpers(handlebarsLayouts);
       wax.helpers({
@@ -172,17 +172,6 @@ module.exports = new Transformer({
       const layoutsDir = path.join(
         projectRoot,
         String(config.layouts ? config.layouts : "src/views/layouts/")
-      );
-
-      ["data", "decorators", "helpers", "layouts", "partials"].forEach(
-        (value) => {
-          let sources = toArray(config[value]);
-          for (let s = 0; s < sources.length; s++) {
-            let source = sources[s];
-            sources[s] = path.join(projectRoot, source);
-          }
-          config[value] = sources;
-        }
       );
 
       config.helpers.forEach((x) => wax.helpers(`${x}/**/*.js`));
