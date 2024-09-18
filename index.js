@@ -139,8 +139,9 @@ module.exports = new Transformer({
 
   async transform({ asset, config, options }) {
     let content = await asset.getCode();
+    console.log(content);
     const projectRoot = findProjectRoot(null, options);
-
+    console.log(projectRoot);
     try {
       const wax = handlebarsWax(Handlebars);
       wax.helpers(handlebarsHelpers);
@@ -281,7 +282,7 @@ module.exports = new Transformer({
       }
 
       if (!isJsModule) {
-        asset.setCode(content);
+        await asset.setCode(content);
         return [asset];
       }
 
@@ -309,35 +310,5 @@ module.exports = new Transformer({
     }
 
     return [asset];
-
-    /*
-    for (const [lang, langData] of Object.entries(languages)) {
-      const data = Object.assign({}, langData, {
-        NODE_ENV: process.env.NODE_ENV,
-      });
-      const result = wax.compile(content)(data);
-      const depName = path.basename(asset.filePath, ".html") + `.${lang}.html`;
-      const outputPath = path.join(
-        projectRoot, "dist2", (path.dirname(asset.filePath).replace(projectRoot, "")),
-         depName
-       );
-       const distPath2 = path.join(
-          (path.dirname(asset.filePath).replace(projectRoot, "")),
-         depName
-       );
-       console.log(distPath2);
-       const distPath = path.join(
-         projectRoot, "dist2",
-       );
-       console.log(outputPath);
-       await fs.ensureFileSync(outputPath);
-       await fsp.writeFile(outputPath, result); 
-
-      childAssets.push({
-        filePath: outputPath,
-        type: "html",
-      });
-    }    
-  */
   },
 });
