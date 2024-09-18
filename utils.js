@@ -35,65 +35,7 @@ function loadUserConfig() {
 
   return {};
 }
-function createGlobIgnoringFunction(patterns) {
-  // Converte cada padrão em uma expressão regular ou mantém como string literal
-  const regexPatterns = patterns.map((pattern) => {
-    if (pattern.includes("*")) {
-      // É uma glob pattern, converte para regex
-      return new RegExp("^" + pattern.replace(/\*/g, ".*") + "$", "i");
-    } else {
-      // É uma string literal, converte para regex escapando caracteres especiais
-      return new RegExp(
-        "^" + pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
-        "i"
-      );
-    }
-  });
 
-  // Retorna uma função que verifica se uma string corresponde a qualquer uma das expressões regulares
-  return function (str) {
-    return !regexPatterns.some((regex) => regex.test(str));
-  };
-}
-
-const parseSimpleLayout = (str, opts) => {
-  const layoutPattern = /{{!<\s+([A-Za-z0-9._\-/]+)\s*}}/;
-  const matches = str.match(layoutPattern);
-
-  if (matches) {
-    let layout = matches[1];
-
-    if (opts.layouts && layout[0] !== ".") {
-      layout = path.resolve(opts.layouts, layout);
-    }
-
-    const hbsLayout = path.resolve(process.cwd(), `${layout}.hbs`);
-
-    if (fs.existsSync(hbsLayout)) {
-      // eslint-disable-line no-sync
-      const content = fs.readFileSync(hbsLayout, { encoding: "utf-8" }); // eslint-disable-line no-sync
-      return content.replace("{{{body}}}", str);
-    }
-
-    const handlebarsLayout = hbsLayout.replace(".hbs", ".handlebars");
-
-    if (fs.existsSync(handlebarsLayout)) {
-      // eslint-disable-line no-sync
-      const content = fs.readFileSync(handlebarsLayout, { encoding: "utf-8" }); // eslint-disable-line no-sync
-      return content.replace("{{{body}}}", str);
-    }
-  }
-
-  return str;
-};
-const hashClass = (name) => {
-  const hash = farmhash.hash32(name).toString(36);
-  const firstChar = hash.charAt(0);
-  if (!/[a-z]/.test(firstChar)) {
-    return "x" + hash;
-  }
-  return hash;
-};
 const findProjectRoot = (event, options) => {
   if (options.env["npm_package_json"]) {
     return path.dirname(options.env["npm_package_json"]);
@@ -115,47 +57,93 @@ const getMayaSettings = (projectRoot) => {
     return [Object.assign({}, section)];
   }
 };
-const listAllHtmlClasses = (html) => {
-  const $ = cheerio.load(html);
-  const classes = new Set();
 
-  // Itera sobre todos os elementos que possuem um atributo 'class'
-  $("[class]").each((i, el) => {
-    // Pega o valor do atributo 'class' e separa em classes individuais
-    const classList = $(el).attr("class").split(/\s+/);
-    classList.forEach((className) => classes.add(className));
-  });
-
-  // Converte o Set em uma array para retornar todas as classes
-  return Array.from(classes);
+const hashClass = (name) => {
+  const hash = farmhash.hash32(name).toString(36);
+  const firstChar = hash.charAt(0);
+  if (!/[a-z]/.test(firstChar)) {
+    return "x" + hash;
+  }
+  return hash;
 };
-const htmlObfuscateClasses = (html, mayaIgnoreList, hashSalt = "") => {
-  try{
-  const shouldIgnore = createGlobIgnoringFunction([
-    ...mayaIgnoreList,
-    ...htmlTags,
-  ]);
-  let allClasses = listAllHtmlClasses(html);
-  allClasses = Array.isArray(allClasses) ? allClasses : [];
-  allClasses = allClasses.filter((classe) =>{
-    return shouldIgnore(classe);
-  });
-  if(!allClasses.length){
-    return html;
-  };
-  const hashClasses = {};
-  allClasses.forEach((classe) => {
-    hashClasses[classe] = hashClass(hashSalt + classe);
+
+function createGlobIgnoringFunction(patterns) {
+  // Converte cada padrão em uma expressão regular ou mantém como string literal
+  const regexPatterns = patterns.map((pattern) => {
+    if (pattern.includes("*")) {
+      // É uma glob pattern, converte para regex
+      return new RegExp("^" + pattern.replace(/\*/g, ".*") + "$", "i");
+    } else {
+      // É uma string literal, converte para regex escapando caracteres especiais
+      return new RegExp(
+        "^" + pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
+        "i"
+      );
+    }
   });
 
-  return replaceClasses(html, hashClasses);
-}catch(err){
-  return html;
+  // Retorna uma função que verifica se uma string corresponde a qualquer uma das expressões regulares
+  return function (str) {
+    return !regexPatterns.some((regex) => regex.test(str));
+  };
 }
+const listAllHtmlClasses = (html) => {
+  try {
+    const $ = cheerio.loadBuffer(Buffer.from(html), );
+    const classes = new Set();
+
+    // Itera sobre todos os elementos que possuem um atributo 'class'
+    $("[class]").each((i, el) => {
+      // Pega o valor do atributo 'class' e separa em classes individuais
+      const allClasses = $(el).attr("class");
+      
+      const classList = allClasses && allClasses.length ? allClasses.split(/\s+/) : [];
+      classList.forEach((className) => classes.add(className.trim()));
+    });
+
+    // Converte o Set em uma array para retornar todas as classes
+    return Array.from(classes);
+  } catch (err) {
+    console.log(err);
+    console.log("cherrioooooooo");
+    return [];
+  }
+};
+const htmlObfuscateClasses = (
+  html = "",
+  mayaIgnoreList = [],
+  hashSalt = ""
+) => {
+  try {
+    html = typeof html === "string" && html.length ? html : "";
+    hashSalt =
+      typeof hashSalt === "string" && hashSalt.length ? hashSalt : "lucifer";
+    mayaIgnoreList =
+      mayaIgnoreList && Array.isArray(mayaIgnoreList) ? mayaIgnoreList : [];
+    const shouldIgnore = createGlobIgnoringFunction([
+      ...mayaIgnoreList,
+      ...htmlTags,
+    ]);
+    let allClasses = listAllHtmlClasses(html);
+    allClasses = Array.isArray(allClasses) ? allClasses : [];
+    allClasses = allClasses.filter((classe) => {
+      return classe && shouldIgnore(classe);
+    });
+    if (!allClasses.length) {
+      return html;
+    }
+    const hashClasses = {};
+    allClasses.forEach((classe) => {
+      hashClasses[classe] = hashClass(hashSalt + classe);
+    });
+
+    return replaceClasses(html, hashClasses);
+  } catch (err) {
+    return html;
+  }
 };
 module.exports = {
   loadUserConfig,
-  parseSimpleLayout,
   findProjectRoot,
   htmlObfuscateClasses,
   hashClass,
