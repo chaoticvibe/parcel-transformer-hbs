@@ -280,7 +280,7 @@ module.exports = new Transformer({
             ? mayaConfig.hashSalt.toString()
             : "";
 
-        content = htmlObfuscateClasses(content, [], mayaHashSalt);
+        content = htmlObfuscateClasses(content, mayaIgnoreList, mayaHashSalt);
       }
 
       if (!isJsModule) {
