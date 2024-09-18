@@ -140,7 +140,7 @@ module.exports = new Transformer({
     let content = await asset.getCode();
     const projectRoot = findProjectRoot(null, options);
     try {
-      const wax = handlebarsWax(Handlebars, {cwd:projectRoot});
+      const wax = handlebarsWax(Handlebars, { cwd: projectRoot });
       wax.helpers(handlebarsHelpers);
       wax.helpers(handlebarsLayouts);
 
@@ -169,11 +169,25 @@ module.exports = new Transformer({
         partialsDir
       );
       const layouts = layoutsToFilePaths(extractLayouts(content), layoutsDir);
+      console.log("layouts:", layouts);
+      console.log("partials:", partials);
       const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html,hbs}`);
-      layoutsGlob.forEach((file) => wax.partials(file));
-      const partialsGlob = config.partials.map((x) => `${x}/**/*.{html,html,hbs}`);
-      partialsGlob.forEach((file) => wax.partials(file));
+      const partialsGlob = config.partials.map(
+        (x) => `${x}/**/*.{html,html,hbs}`
+      );
+      const [partialsFiles, layoutsFiles] = await Promise.all[fastGlob(...partialsGlob), fastGlob(...layoutsGlob)]
+      const registerPartials = await Promise.all(
+        [...partialsFiles, ...layoutsFiles].map(async (filePath) => {
+          const content = await fsp.readFile(filePath, "utf-8");
+          const relativePath = path.relative(dir, filePath).replace(/\\/g, "/"); // Converte para formato Unix
+          const name = relativePath.replace(path.extname(relativePath), ""); // Remove a extensão
+          const partial = {};
+          partial[name] = content;
+          return partial;
+        })
+      );
 
+      wax.partials(...registerPartials);
       const depPatterns = [
         config.helpers.map((x) => `${x}/**/*.js`),
         config.data.map((x) => `${x}/**/*.{json,js}`),
@@ -204,9 +218,17 @@ module.exports = new Transformer({
           NODE_ENV: process.env.NODE_ENV,
         }
       );
-      const newDelimiterOpen = '![[[';
-      let result = wax.compile(content.replace(/{{(?!>)/g, newDelimiterOpen))(data);
-      content = result.replace(new RegExp(newDelimiterOpen.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), '{{')  
+      const newDelimiterOpen = "![[[";
+      let result = wax.compile(content.replace(/{{(?!>)/g, newDelimiterOpen))(
+        data
+      );
+      content = result.replace(
+        new RegExp(
+          newDelimiterOpen.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
+          "g"
+        ),
+        "{{"
+      );
 
       let contentSources = "";
 
