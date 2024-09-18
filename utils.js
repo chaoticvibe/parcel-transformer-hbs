@@ -130,6 +130,7 @@ const listAllHtmlClasses = (html) => {
   return Array.from(classes);
 };
 const htmlObfuscateClasses = (html, mayaIgnoreList, hashSalt = "") => {
+  try{
   const shouldIgnore = createGlobIgnoringFunction([
     ...mayaIgnoreList,
     ...htmlTags,
@@ -139,11 +140,18 @@ const htmlObfuscateClasses = (html, mayaIgnoreList, hashSalt = "") => {
   allClasses = allClasses.filter((classe) =>{
     return shouldIgnore(classe);
   });
+  if(!allClasses.length){
+    return html;
+  };
   const hashClasses = {};
   allClasses.forEach((classe) => {
     hashClasses[classe] = hashClass(hashSalt + classe);
-  })
+  });
+
   return replaceClasses(html, hashClasses);
+}catch(err){
+  return html;
+}
 };
 module.exports = {
   loadUserConfig,
