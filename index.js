@@ -244,38 +244,8 @@ module.exports = new Transformer({
       }
 
       if (isProduction) {
-        const mayaConfigs = getMayaSettings(projectRoot);
-        const mayaConfig =
-          mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
-            ? mayaConfigs[0]
-            : {};
-        const mayaIgnoreList =
-          mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
-            ? mayaConfig.ignoreList
-            : [];
-        let defaultMayaIgnoreList;
-        try {
-          const modulePath = require.resolve(
-            "parcel-transformer-maya/defaultIgnoreList.js",
-            {
-              paths: [asset.filePath, __dirname],
-            }
-          );
-          defaultMayaIgnoreList = require(modulePath);
-        } catch (err) {
-          console.warn(
-            "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
-          );
-        }
 
-        if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
-          mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
-        }
-        const mayaHashSalt = mayaConfig.hashSalt
-          ? mayaConfig.hashSalt.toString()
-          : "";
-
-        content = htmlObfuscateClasses(content, mayaIgnoreList, mayaHashSalt);
+        content = htmlObfuscateClasses(content, [], "llll");
       }
 
       if (!isJsModule) {
