@@ -149,151 +149,153 @@ module.exports = new Transformer({
       projectRoot
     );
     */
+    try {
+      const wax = handlebarsWax(Handlebars);
+      wax.helpers(handlebarsHelpers);
+      wax.helpers(handlebarsLayouts);
+      wax.helpers({
+        "*": function (...args) {
+          const options = args[args.length - 1]; // 'options' contém informações do bloco
+          const name = options.name || args[0]; // Captura o nome do bloco ou expressão
 
-    const wax = handlebarsWax(Handlebars);
-    wax.helpers(handlebarsHelpers);
-    wax.helpers(handlebarsLayouts);
-    wax.helpers({
-      '*': function (...args) {
-        const options = args[args.length - 1]; // 'options' contém informações do bloco
-        const name = options.name || args[0]; // Captura o nome do bloco ou expressão
-    
-        // Se for um bloco que começa com './', processa normalmente
-        if (typeof name === 'string' && name.startsWith('.')) {
-          return options.fn ? options.fn(this) : ''; // Processa blocos normalmente
-        } else {
-          // Se o bloco ou tag não for encontrado, preserva no template
-          if (options.fn) {
-            // Para blocos, preserva o conteúdo
-            return new Handlebars.SafeString(`{{#${name}}}${options.fn(this)}{{/${name}}}`);
+          // Se for um bloco que começa com './', processa normalmente
+          if (typeof name === "string" && name.startsWith(".")) {
+            return options.fn ? options.fn(this) : ""; // Processa blocos normalmente
           } else {
-            // Para expressões simples, preserva a tag intacta
-            return new Handlebars.SafeString(`{{${name}}}`);
+            // Se o bloco ou tag não for encontrado, preserva no template
+            if (options.fn) {
+              // Para blocos, preserva o conteúdo
+              return new Handlebars.SafeString(
+                `{{#${name}}}${options.fn(this)}{{/${name}}}`
+              );
+            } else {
+              // Para expressões simples, preserva a tag intacta
+              return new Handlebars.SafeString(`{{${name}}}`);
+            }
           }
+        },
+      });
+      const partialsDir = path.join(
+        projectRoot,
+        String(config.partials ? config.partials : "src/views/partials/")
+      );
+      const layoutsDir = path.join(
+        projectRoot,
+        String(config.layouts ? config.layouts : "src/views/layouts/")
+      );
+
+      ["data", "decorators", "helpers", "layouts", "partials"].forEach(
+        (value) => {
+          let sources = toArray(config[value]);
+          for (let s = 0; s < sources.length; s++) {
+            let source = sources[s];
+            sources[s] = path.join(projectRoot, source);
+          }
+          config[value] = sources;
         }
-      }
-    });
-    const partialsDir = path.join(
-      projectRoot,
-      String(config.partials ? config.partials : "src/views/partials/")
-    );
-    const layoutsDir = path.join(
-      projectRoot,
-      String(config.layouts ? config.layouts : "src/views/layouts/")
-    );
+      );
 
-    ["data", "decorators", "helpers", "layouts", "partials"].forEach(
-      (value) => {
-        let sources = toArray(config[value]);
-        for (let s = 0; s < sources.length; s++) {
-          let source = sources[s];
-          sources[s] = path.join(projectRoot, source);
-        }
-        config[value] = sources;
-      }
-    );
+      config.helpers.forEach((x) => wax.helpers(`${x}/**/*.js`));
+      config.data.forEach((x) => wax.data(`${x}/**/*.{json,js}`));
+      config.decorators.forEach((x) => wax.decorators(`${x}/**/*.js`));
 
-    config.helpers.forEach((x) => wax.helpers(`${x}/**/*.js`));
-    config.data.forEach((x) => wax.data(`${x}/**/*.{json,js}`));
-    config.decorators.forEach((x) => wax.decorators(`${x}/**/*.js`));
+      const partials = partialsToFilePaths(
+        extractPartials(content),
+        partialsDir
+      );
+      const layouts = layoutsToFilePaths(extractLayouts(content), layoutsDir);
+      const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html}`);
+      const layoutsFiles = getFilteredFiles(await fastGlob(layoutsGlob));
+      layoutsFiles.forEach((file) => wax.partials(file));
+      const partialsGlob = config.partials.map((x) => `${x}/**/*.{htm,html}`);
+      const partialsFiles = getFilteredFiles(await fastGlob(partialsGlob));
+      partialsFiles.forEach((file) => wax.partials(file));
 
-    const partials = partialsToFilePaths(extractPartials(content), partialsDir);
-    const layouts = layoutsToFilePaths(extractLayouts(content), layoutsDir);
-    const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html}`);
-    const layoutsFiles = getFilteredFiles(await fastGlob(layoutsGlob));
-    layoutsFiles.forEach((file) => wax.partials(file));
-    const partialsGlob = config.partials.map((x) => `${x}/**/*.{htm,html}`);
-    const partialsFiles = getFilteredFiles(await fastGlob(partialsGlob));
-    partialsFiles.forEach((file) => wax.partials(file));
+      const depPatterns = [
+        config.helpers.map((x) => `${x}/**/*.js`),
+        config.data.map((x) => `${x}/**/*.{json,js}`),
+        config.decorators.map((x) => `${x}/**/*.js`),
+      ].flat(); // Achata os padrões glob
 
-    const depPatterns = [
-      config.helpers.map((x) => `${x}/**/*.js`),
-      config.data.map((x) => `${x}/**/*.{json,js}`),
-      config.decorators.map((x) => `${x}/**/*.js`),
-    ].flat(); // Achata os padrões glob
+      // Use fast-glob para buscar arquivos de forma assíncrona
+      const depFileArray = await Promise.all(
+        depPatterns.map((pattern) => fastGlob(pattern, { dot: true }))
+      );
 
-    // Use fast-glob para buscar arquivos de forma assíncrona
-    const depFileArray = await Promise.all(
-      depPatterns.map((pattern) => fastGlob(pattern, { dot: true }))
-    );
+      // Achata o array de arrays de resultados
+      const dependencies = toArray(depFileArray).flat();
 
-    // Achata o array de arrays de resultados
-    const dependencies = toArray(depFileArray).flat();
+      dependencies.push(...layouts);
+      dependencies.push(...partials);
 
-    dependencies.push(...layouts);
-    dependencies.push(...partials);
-
-    /*
+      /*
     for (const langFile of langFiles) {
       asset.invalidateOnFileChange(langFile);
     }
     */
 
-    for (const dep of dependencies) {
-      asset.invalidateOnFileChange(dep);
-    }
-
-    let isJsModule =
-      asset.filePath.endsWith(".hbs") || asset.filePath.endsWith(".handlebars");
-    const data = Object.assign(
-      {},
-      {
-        NODE_ENV: process.env.NODE_ENV,
-      }
-    );
-    const result = wax.compile(content)(data);
-    content = result;
-
-    let contentSources = "";
-    if (isJsModule) {
-      const { html, sources } = addDep(content, asset);
-      contentSources = sources;
-      content = html;
-    }
-try{
-
-
-    if (isProduction) {
-      const mayaConfigs = getMayaSettings(projectRoot);
-      const mayaConfig =
-        mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
-          ? mayaConfigs[0]
-          : {};
-      const mayaIgnoreList =
-        mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
-          ? mayaConfig.ignoreList
-          : [];
-      let defaultMayaIgnoreList;
-      try {
-        const modulePath = require.resolve(
-          "parcel-transformer-maya/defaultIgnoreList.js",
-          {
-            paths: [asset.filePath, __dirname],
-          }
-        );
-        defaultMayaIgnoreList = require(modulePath);
-      } catch (err) {
-        console.warn(
-          "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
-        );
+      for (const dep of dependencies) {
+        asset.invalidateOnFileChange(dep);
       }
 
-      if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
-        mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
+      let isJsModule =
+        asset.filePath.endsWith(".hbs") ||
+        asset.filePath.endsWith(".handlebars");
+      const data = Object.assign(
+        {},
+        {
+          NODE_ENV: process.env.NODE_ENV,
+        }
+      );
+      const result = wax.compile(content)(data);
+      content = result;
+
+      let contentSources = "";
+      if (isJsModule) {
+        const { html, sources } = addDep(content, asset);
+        contentSources = sources;
+        content = html;
       }
-      const mayaHashSalt = mayaConfig.hashSalt
-        ? mayaConfig.hashSalt.toString()
-        : "";
 
-      content = htmlObfuscateClasses(content, mayaIgnoreList, mayaHashSalt);
-    }
+      if (isProduction) {
+        const mayaConfigs = getMayaSettings(projectRoot);
+        const mayaConfig =
+          mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
+            ? mayaConfigs[0]
+            : {};
+        const mayaIgnoreList =
+          mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
+            ? mayaConfig.ignoreList
+            : [];
+        let defaultMayaIgnoreList;
+        try {
+          const modulePath = require.resolve(
+            "parcel-transformer-maya/defaultIgnoreList.js",
+            {
+              paths: [asset.filePath, __dirname],
+            }
+          );
+          defaultMayaIgnoreList = require(modulePath);
+        } catch (err) {
+          console.warn(
+            "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
+          );
+        }
 
-    if (!isJsModule) {
-      asset.setCode(content);
-      return [asset];
-    }
+        if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
+          mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
+        }
+        const mayaHashSalt = mayaConfig.hashSalt
+          ? mayaConfig.hashSalt.toString()
+          : "";
 
-   
+        content = htmlObfuscateClasses(content, mayaIgnoreList, mayaHashSalt);
+      }
+
+      if (!isJsModule) {
+        asset.setCode(content);
+        return [asset];
+      }
 
       content = isProduction
         ? minify(content, {
@@ -315,7 +317,6 @@ try{
       const precompiled = Handlebars.precompile(content, {
         knownHelpers: handlebarsHelpers,
       });
-      console.log(precompiled);
       asset.setCode(`
         let sources = [];
         ${contentSources}
@@ -329,8 +330,7 @@ try{
         export {tpl, sources};`);
       asset.type = "js";
     } catch (err) {
-    console.log("--parcel-transformer-hbs: Error compiling template.",
-      err);
+      console.log("--parcel-transformer-hbs: Error compiling template.", err);
       throw new Error(
         "--parcel-transformer-hbs: Error compiling template.",
         err
