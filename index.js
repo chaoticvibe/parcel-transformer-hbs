@@ -143,7 +143,7 @@ module.exports = new Transformer({
       const wax = handlebarsWax(Handlebars);
       wax.helpers(handlebarsHelpers);
       wax.helpers(handlebarsLayouts);
-     /* wax.helpers({
+      /* wax.helpers({
         "*": function (...args) {
           const options = args[args.length - 1]; // 'options' contém informações do bloco
           const name = options.name || args[0]; // Captura o nome do bloco ou expressão
@@ -232,11 +232,11 @@ module.exports = new Transformer({
           NODE_ENV: process.env.NODE_ENV,
         }
       );
-      const result = wax.compile(content)(data);
+      let result = wax.compile(content)(data);
       content = result;
 
       let contentSources = "";
-     
+
       if (isJsModule) {
         const { html, sources } = addDep(content, asset);
         contentSources = sources;
@@ -255,7 +255,7 @@ module.exports = new Transformer({
             : [];
         let defaultMayaIgnoreList;
         try {
-          const modulePath = require.resolve(
+          let modulePath = require.resolve(
             "parcel-transformer-maya/defaultIgnoreList.js",
             {
               paths: [asset.filePath, __dirname],
@@ -268,37 +268,46 @@ module.exports = new Transformer({
           );
         }
 
-        if (defaultMayaIgnoreList && mayaConfig && mayaConfig.useBootstrapIgnoreList) {
+        if (
+          defaultMayaIgnoreList &&
+          mayaConfig &&
+          mayaConfig.useBootstrapIgnoreList
+        ) {
           mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
         }
-        const mayaHashSalt = mayaConfig && mayaConfig.hashSalt
-          ? mayaConfig.hashSalt.toString()
-          : "";
+        const mayaHashSalt =
+          mayaConfig && mayaConfig.hashSalt
+            ? mayaConfig.hashSalt.toString()
+            : "";
 
-        content = htmlObfuscateClasses(content, mayaIgnoreList = [], mayaHashSalt);
+        content = htmlObfuscateClasses(
+          content,
+          (mayaIgnoreList = []),
+          mayaHashSalt
+        );
       }
 
       if (!isJsModule) {
         await asset.setCode(content);
         return [asset];
       }
-
-      content = isProduction
-        ? minify(content, {
-            continueOnParseError: true,
-            collapseWhitespace: true,
-            removeComments: true,
-            removeRedundantAttributes: true,
-            useShortDoctype: true,
-            removeEmptyAttributes: false,
-            removeOptionalTags: true,
-            minifyJS: true,
-            minifyCSS: true,
-            caseSensitive: true,
-            keepClosingSlash: true,
-            html5: true,
-          })
-        : content;
+      if (isProduction) {
+     
+      content = minify(content, {
+        continueOnParseError: true,
+        collapseWhitespace: true,
+        removeComments: true,
+        removeRedundantAttributes: true,
+        useShortDoctype: true,
+        removeEmptyAttributes: false,
+        removeOptionalTags: true,
+        minifyJS: true,
+        minifyCSS: true,
+        caseSensitive: true,
+        keepClosingSlash: true,
+        html5: true,
+      }); 
+    }
 
 
       const precompiled = Handlebars.precompile(content, {
