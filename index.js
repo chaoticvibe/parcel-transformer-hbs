@@ -140,20 +140,12 @@ module.exports = new Transformer({
   async transform({ asset, config, options }) {
     let content = await asset.getCode();
     const projectRoot = findProjectRoot(null, options);
-    // Verificação para arquivos com sufixo .hbs.html ou .hbs.htm
 
-    // Caso padrão para arquivos .htm e .html
-    /*
-    const { langFiles, languages } = await loadLanguages(
-      config.lang,
-      projectRoot
-    );
-    */
     try {
       const wax = handlebarsWax(Handlebars);
       wax.helpers(handlebarsHelpers);
       wax.helpers(handlebarsLayouts);
-      wax.helpers({
+     /* wax.helpers({
         "*": function (...args) {
           const options = args[args.length - 1]; // 'options' contém informações do bloco
           const name = options.name || args[0]; // Captura o nome do bloco ou expressão
@@ -175,6 +167,7 @@ module.exports = new Transformer({
           }
         },
       });
+      */
       const partialsDir = path.join(
         projectRoot,
         String(config.partials ? config.partials : "src/views/partials/")
@@ -228,12 +221,6 @@ module.exports = new Transformer({
       dependencies.push(...layouts);
       dependencies.push(...partials);
 
-      /*
-    for (const langFile of langFiles) {
-      asset.invalidateOnFileChange(langFile);
-    }
-    */
-
       for (const dep of dependencies) {
         asset.invalidateOnFileChange(dep);
       }
@@ -251,6 +238,7 @@ module.exports = new Transformer({
       content = result;
 
       let contentSources = "";
+     
       if (isJsModule) {
         const { html, sources } = addDep(content, asset);
         contentSources = sources;
@@ -296,23 +284,6 @@ module.exports = new Transformer({
         asset.setCode(content);
         return [asset];
       }
-
-      content = isProduction
-        ? minify(content, {
-            continueOnParseError: true,
-            collapseWhitespace: true,
-            removeComments: true,
-            removeRedundantAttributes: true,
-            useShortDoctype: true,
-            removeEmptyAttributes: false,
-            removeOptionalTags: true,
-            minifyJS: true,
-            minifyCSS: true,
-            caseSensitive: true,
-            keepClosingSlash: true,
-            html5: true,
-          })
-        : content;
 
       const precompiled = Handlebars.precompile(content, {
         knownHelpers: handlebarsHelpers,
