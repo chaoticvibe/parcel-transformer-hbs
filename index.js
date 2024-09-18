@@ -249,6 +249,8 @@ module.exports = new Transformer({
       contentSources = sources;
       content = html;
     }
+try{
+
 
     if (isProduction) {
       const mayaConfigs = getMayaSettings(projectRoot);
@@ -283,7 +285,6 @@ module.exports = new Transformer({
         : "";
 
       content = htmlObfuscateClasses(content, mayaIgnoreList, mayaHashSalt);
-      console.log(content);
     }
 
     if (!isJsModule) {
@@ -293,7 +294,6 @@ module.exports = new Transformer({
 
    
 
-    try {
       content = isProduction
         ? minify(content, {
             continueOnParseError: true,
@@ -327,6 +327,8 @@ module.exports = new Transformer({
         export {tpl, sources};`);
       asset.type = "js";
     } catch (err) {
+    console.log("--parcel-transformer-hbs: Error compiling template.",
+      err);
       throw new Error(
         "--parcel-transformer-hbs: Error compiling template.",
         err
