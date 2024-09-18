@@ -143,28 +143,7 @@ module.exports = new Transformer({
       const wax = handlebarsWax(Handlebars, {cwd:projectRoot});
       wax.helpers(handlebarsHelpers);
       wax.helpers(handlebarsLayouts);
-      wax.helpers({
-        "*": function (...args) {
-          const options = args[args.length - 1]; // 'options' contém informações do bloco
-          const name = options.name || args[0]; // Captura o nome do bloco ou expressão
-          console.log(name);
-          // Se for um bloco que começa com './', processa normalmente
-          if (typeof name === "string" && name.startsWith(".")) {
-            return options.fn ? options.fn(this) : ""; // Processa blocos normalmente
-          } else {
-            // Se o bloco ou tag não for encontrado, preserva no template
-            if (options.fn) {
-              // Para blocos, preserva o conteúdo
-              return new Handlebars.SafeString(
-                `{{#${name}}}${options.fn(this)}{{/${name}}}`
-              );
-            } else {
-              // Para expressões simples, preserva a tag intacta
-              return new Handlebars.SafeString(`{{${name}}}`);
-            }
-          }
-        },
-      });
+
       const partialsDir = path.join(
         projectRoot,
         String(config.partials ? config.partials : "src/views/partials/")
