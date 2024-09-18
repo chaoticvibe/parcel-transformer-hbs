@@ -262,6 +262,7 @@ module.exports = new Transformer({
         : "";
 
       content = htmlObfuscateClasses(content, mayaIgnoreList, mayaHashSalt);
+      console.log(content);
     }
 
     if (!isJsModule) {

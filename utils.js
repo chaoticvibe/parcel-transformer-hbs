@@ -130,7 +130,6 @@ const listAllHtmlClasses = (html) => {
   return Array.from(classes);
 };
 const htmlObfuscateClasses = (html, mayaIgnoreList, hashSalt = "") => {
-  mayaIgnoreList.push(...htmlTags);
   const shouldIgnore = createGlobIgnoringFunction([
     ...mayaIgnoreList,
     ...htmlTags,
