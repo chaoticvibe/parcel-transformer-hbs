@@ -239,6 +239,20 @@ module.exports = new Transformer({
         mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
           ? mayaConfig.ignoreList
           : [];
+      let defaultMayaIgnoreList;
+      try {
+        const modulePath = require.resolve(
+          "parcel-transformer-maya/defaultIgnoreList.js",
+          {
+            paths: [asset.filePath, __dirname],
+          }
+        );
+        defaultMayaIgnoreList = require(modulePath);
+      } catch (err) {
+        console.warn(
+          "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
+        );
+      }
 
       if (defaultMayaIgnoreList && mayaConfig.useBootstrapIgnoreList) {
         mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
