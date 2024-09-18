@@ -194,12 +194,10 @@ module.exports = new Transformer({
         partialsDir
       );
       const layouts = layoutsToFilePaths(extractLayouts(content), layoutsDir);
-      const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html}`);
-      const layoutsFiles = getFilteredFiles(await fastGlob(...layoutsGlob));
-      console.log(layoutsFiles);
-      layoutsFiles.forEach((file) => wax.partials(file));
-      const partialsGlob = config.partials.map((x) => `${x}/**/*.{html,html}`);
-      const partialsFiles = getFilteredFiles(await fastGlob(partialsGlob));
+      const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html,hbs}`);
+      layoutsGlob.forEach((file) => wax.partials(file));
+      const partialsGlob = config.partials.map((x) => `${x}/**/*.{html,html,hbs}`);
+      const partialsFiles = getFilteredFiles(await fastGlob(...partialsGlob));
       partialsFiles.forEach((file) => wax.partials(file));
 
       const depPatterns = [
