@@ -195,9 +195,10 @@ module.exports = new Transformer({
       );
       const layouts = layoutsToFilePaths(extractLayouts(content), layoutsDir);
       const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html}`);
-      const layoutsFiles = getFilteredFiles(await fastGlob(layoutsGlob));
+      const layoutsFiles = getFilteredFiles(await fastGlob(...layoutsGlob));
+      console.log(layoutsFiles);
       layoutsFiles.forEach((file) => wax.partials(file));
-      const partialsGlob = config.partials.map((x) => `${x}/**/*.{htm,html}`);
+      const partialsGlob = config.partials.map((x) => `${x}/**/*.{html,html}`);
       const partialsFiles = getFilteredFiles(await fastGlob(partialsGlob));
       partialsFiles.forEach((file) => wax.partials(file));
 
