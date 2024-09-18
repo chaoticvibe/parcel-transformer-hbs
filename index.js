@@ -163,7 +163,7 @@ module.exports = new Transformer({
               return new Handlebars.SafeString(`{{${name}}}`);
             }
           }
-        },waxwax
+        },
       });
       const partialsDir = path.join(
         projectRoot,
