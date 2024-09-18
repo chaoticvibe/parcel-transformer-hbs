@@ -282,7 +282,7 @@ module.exports = new Transformer({
 
         content = htmlObfuscateClasses(
           content,
-          (mayaIgnoreList = []),
+          [],
           mayaHashSalt
         );
       }
