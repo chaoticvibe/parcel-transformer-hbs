@@ -15,6 +15,7 @@ const {
   findProjectRoot,
   htmlObfuscateClasses,
 } = require("./utils");
+const { constants } = require("buffer");
 const isProduction = process.env.NODE_ENV === "production";
 // Configuração padrão de diretórios Handlebars
 const defaultConfig = {
@@ -314,6 +315,7 @@ try{
       const precompiled = Handlebars.precompile(content, {
         knownHelpers: handlebarsHelpers,
       });
+      console.log(precompiled);
       asset.setCode(`
         let sources = [];
         ${contentSources}
