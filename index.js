@@ -174,6 +174,13 @@ module.exports = new Transformer({
         String(config.layouts ? config.layouts : "src/views/layouts/")
       );
 
+      ["data", "decorators", "helpers", "layouts", "partials"].forEach(
+        (value) => {
+          let sources = toArray(config[value]);
+          config[value] = sources;
+        }
+      );
+
       config.helpers.forEach((x) => wax.helpers(`${x}/**/*.js`));
       config.data.forEach((x) => wax.data(`${x}/**/*.{json,js}`));
       config.decorators.forEach((x) => wax.decorators(`${x}/**/*.js`));
