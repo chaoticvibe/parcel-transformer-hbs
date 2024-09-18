@@ -106,7 +106,6 @@ const listAllHtmlClasses = (html) => {
     return Array.from(classes);
   } catch (err) {
     console.log(err);
-    console.log("cherrioooooooo");
     return [];
   }
 };

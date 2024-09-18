@@ -244,14 +244,62 @@ module.exports = new Transformer({
       }
 
       if (isProduction) {
+        const mayaConfigs = getMayaSettings(projectRoot);
+        const mayaConfig =
+          mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
+            ? mayaConfigs[0]
+            : {};
+        const mayaIgnoreList =
+          mayaConfig.ignoreList && Array.isArray(mayaConfig.ignoreList)
+            ? mayaConfig.ignoreList
+            : [];
+        let defaultMayaIgnoreList;
+        try {
+          const modulePath = require.resolve(
+            "parcel-transformer-maya/defaultIgnoreList.js",
+            {
+              paths: [asset.filePath, __dirname],
+            }
+          );
+          defaultMayaIgnoreList = require(modulePath);
+        } catch (err) {
+          console.warn(
+            "--parcel-transformer-hbs: Failed to require defaultMayaIgnoreList from parcel-transformer-maya"
+          );
+        }
 
-        content = htmlObfuscateClasses(content, [], "llll");
+        if (defaultMayaIgnoreList && mayaConfig && mayaConfig.useBootstrapIgnoreList) {
+          mayaIgnoreList.push(...defaultMayaIgnoreList.bootstrapIgnoreList);
+        }
+        const mayaHashSalt = mayaConfig && mayaConfig.hashSalt
+          ? mayaConfig.hashSalt.toString()
+          : "";
+
+        content = htmlObfuscateClasses(content, mayaIgnoreList = [], mayaHashSalt);
       }
 
       if (!isJsModule) {
         await asset.setCode(content);
         return [asset];
       }
+
+      content = isProduction
+        ? minify(content, {
+            continueOnParseError: true,
+            collapseWhitespace: true,
+            removeComments: true,
+            removeRedundantAttributes: true,
+            useShortDoctype: true,
+            removeEmptyAttributes: false,
+            removeOptionalTags: true,
+            minifyJS: true,
+            minifyCSS: true,
+            caseSensitive: true,
+            keepClosingSlash: true,
+            html5: true,
+          })
+        : content;
+
 
       const precompiled = Handlebars.precompile(content, {
         knownHelpers: handlebarsHelpers,
