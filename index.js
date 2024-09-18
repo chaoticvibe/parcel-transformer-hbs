@@ -227,7 +227,7 @@ module.exports = new Transformer({
       );
       const newDelimiterOpen = '![[[';
       let result = wax.compile(content.replace(/{{(?!>)/g, newDelimiterOpen))(data);
-      content = result.replace(new RegExp(newDelimiterOpen, 'g'), '{{')  
+      content = result.replace(new RegExp(newDelimiterOpen.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), '{{')  
 
       let contentSources = "";
 
