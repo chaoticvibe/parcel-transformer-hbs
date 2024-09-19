@@ -62,8 +62,11 @@ function mapPartialsToFilePaths(partials, dir) {
   }, {});
 }
 
-async function partialsToFilePaths(partials, paths ) {
+async function partialsToFilePaths(partials, paths, allPartials) {
   const {partialsDir, layoutsDir, alreadyChecked} = paths;
+  if(!partials.length){
+    return [];
+  }
   let partialsMap = mapPartialsToFilePaths(partials, partialsDir);
   let layoutsMap = mapPartialsToFilePaths(partials, layoutsDir);
   let partialsPaths = Object.values(partialsMap);
@@ -73,9 +76,10 @@ async function partialsToFilePaths(partials, paths ) {
     if(alreadyChecked.includes(partialPath)){
       return partialPath;
     }
-    const exists = await fs.exists(path);
+    const file = allPartials.find((data)=>{return data.filePath === partialPath;})
+    const exists = file && file.content;
     if(!exists){
-      return path; 
+      return null; 
     }
       return null;
   }));
@@ -110,7 +114,7 @@ async function allFilePaths(content, paths, allPartials, allExtracted = [], alre
   // Extrai novos partials deste conteúdo e transforma em caminhos completos
   let newPartials = await partialsToFilePaths(
       extractPartials(content),
-      { partialsDir, layoutsDir }
+      { partialsDir, layoutsDir }, allPartials
   );
 
   // Filtra partials já verificados
@@ -187,10 +191,6 @@ module.exports = new Transformer({
       config.data.forEach((x) => wax.data(`${x}/**/*.{json,js}`));
       config.decorators.forEach((x) => wax.decorators(`${x}/**/*.js`));
 
-      const partials = partialsToFilePaths(
-        extractPartials(content),
-        {partialsDir, layoutsDir}
-      );
    
       const layouts = layoutsToFilePaths(extractPartials(content), layoutsDir);
       const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html,hbs}`);
@@ -261,10 +261,11 @@ module.exports = new Transformer({
           NODE_ENV: process.env.NODE_ENV,
         }
       );
+      const deps = await allFilePaths(content, {layoutsDir, partialsDir}, registers);
+
       let result = wax.compile(content.replace(/{{(?!>)/g, newDelimiterOpen))(
         data
       );
-      const deps = await allFilePaths(result, {layoutsDir, partialsDir}, registers);
       console.log(deps);
       console.log(deps);
       content = result.replace(
