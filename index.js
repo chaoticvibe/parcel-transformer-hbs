@@ -178,6 +178,7 @@ module.exports = new Transformer({
       const [partialsFiles, layoutsFiles] = await Promise.all[fastGlob(...partialsGlob), fastGlob(...layoutsGlob)];
       console.log("layoutsFiles: ", layoutsFiles);
       console.log("partialsFiles: ", partialsFiles);
+      console.log("tripppp");
       const depPatterns = [
         config.helpers.map((x) => `${x}/**/*.js`),
         config.data.map((x) => `${x}/**/*.{json,js}`),
