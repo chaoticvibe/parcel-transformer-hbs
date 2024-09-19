@@ -206,7 +206,7 @@ module.exports = new Transformer({
           // Lê o conteúdo de todos os arquivos de forma assíncrona
           const fileContents = await Promise.all(
             filePaths.map(async (filePath) => {
-              const fullPath = path.join(projectRoot, file);
+              const fullPath = path.join(projectRoot, filePath);
               const content = await fsp.readFile(fullPath, "utf-8");
               return { filePath, content, glob: glob.replace(/\/[*?{[].*$/, "") + "/" };
             })
