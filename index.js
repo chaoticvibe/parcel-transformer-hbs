@@ -53,62 +53,85 @@ function extractPartials(templateContent) {
   return partials;
 }
 
-function extractLayouts(templateContent) {
-  const layoutRegex = /{{#layout\s+"([^"]+)"}}.*?{{\/layout}}/gs;
-
-  // Encontrar todos os matches
-  const matches = [];
-  let match;
-  while ((match = layoutRegex.exec(templateContent)) !== null) {
-    matches.push(match[1]);
-  }
-
-  return matches;
-}
-
 // Function to map partial names to file paths
-function mapPartialsToFilePaths(partials, baseDir) {
+function mapPartialsToFilePaths(partials, dir) {
   return partials.reduce((map, partial) => {
-    const partialPath = path.join(baseDir, `${partial}.html`);
+    const partialPath = path.join(dir, `${partial}.html`);
     map[partial] = partialPath;
     return map;
   }, {});
 }
 
-function partialsToFilePaths(partials, baseDir) {
-  let partialsMap = mapPartialsToFilePaths(partials, baseDir);
-  if (!Object.keys(partialsMap).length) {
+async function partialsToFilePaths(partials, paths ) {
+  const {partialsDir, layoutsDir, alreadyChecked} = paths;
+  let partialsMap = mapPartialsToFilePaths(partials, partialsDir);
+  let layoutsMap = mapPartialsToFilePaths(partials, layoutsDir);
+  let partialsPaths = Object.values(partialsMap);
+  let layoutsPaths = Object.values(layoutsMap);
+  let allPaths = [...partialsPaths, ...layoutsPaths];
+  let allPartials = await Promise.all(allPaths.map(async (partialPath, index)=> {
+    if(alreadyChecked.includes(partialPath)){
+      return partialPath;
+    }
+    const exists = await fs.exists(path);
+    if(!exists){
+      return path; 
+    }
+      return null;
+  }));
+  allPartials = allPartials.filter(Boolean);
+
+  if (!allPartials.length) {
     return [];
   }
-  return Object.values(partialsMap);
+  return allPartials;
 }
-function layoutsToFilePaths(partials, baseDir) {
-  return partialsToFilePaths(partials, baseDir);
+function layoutsToFilePaths(partials, partialsDir) {
+  return partialsToFilePaths(partials, partialsDir);
+}
+function arraysEqual(arr1, arr2) {
+  if (arr1.length !== arr2.length) {
+    return false;
+  }
+
+  return arr1.every((value, index) => value === arr2[index]);
+}
+async function allFilePaths(content, paths, allExtracted = [], alreadyChecked = []) {
+  let { partialsDir, layoutsDir, allPartials } = paths;
+
+  // Se já verificamos todos os arquivos, retornamos os que extraímos até agora
+  if (alreadyChecked.length && allExtracted.length && arraysEqual(alreadyChecked, allExtracted)) {
+      return allExtracted;
+  }
+
+  // Marcamos os extraídos atuais como já verificados
+  alreadyChecked = [...alreadyChecked, ...allExtracted];
+
+  // Extrai novos partials deste conteúdo e transforma em caminhos completos
+  let newPartials = await partialsToFilePaths(
+      extractPartials(content),
+      { partialsDir, layoutsDir }
+  );
+
+  // Filtra partials já verificados
+  newPartials = newPartials.filter(partial => !alreadyChecked.includes(partial));
+
+  // Lê o conteúdo de cada partial e chama a função recursivamente
+  let allPaths = await Promise.all(newPartials.map(async (partialPath) => {
+      const file = allPartials.find((data)=>{ return data.filePath === partialPath});
+    
+      let content = file && file.content ? file.content : null;
+      try{
+        content = !content && await fs.exists(partialPath) ? await fsp.readFile(partialPath, 'utf8') : content;
+      }catch(err){ 
+      }
+      return !content ? allExtracted : await allFilePaths(content, { partialsDir, layoutsDir }, newPartials, alreadyChecked);
+  }));
+
+  // Achata os arrays de caminhos retornados
+  return [...new Set(allExtracted.concat(...allPaths))];
 }
 
-// Main function to process a Handlebars template file
-
-async function loadLanguages(langDir, cwd) {
-  // Obtemos os arquivos de idioma no diretório
-  const langFiles = await fastGlob(`${langDir}/*.json`);
-  // Mapeamos para criar promessas de leitura dos arquivos
-  const languagePromises = langFiles.map(async (file) => {
-    const langKey = path.basename(file, ".json");
-    const fileContent = await fsp.readFile(file, "utf8");
-    return { langKey, content: JSON.parse(fileContent) };
-  });
-
-  // Esperamos todas as promessas se resolverem
-  const languageData = await Promise.all(languagePromises);
-
-  // Transformamos os resultados em um objeto
-  const languages = {};
-  languageData.forEach(({ langKey, content }) => {
-    languages[langKey] = content;
-  });
-
-  return { langFiles, languages };
-}
 module.exports = new Transformer({
   async loadConfig({ config }) {
     const configFile = await config.getConfig(
@@ -166,9 +189,10 @@ module.exports = new Transformer({
 
       const partials = partialsToFilePaths(
         extractPartials(content),
-        partialsDir
+        {partialsDir, layoutsDir}
       );
-      const layouts = layoutsToFilePaths(extractLayouts(content), layoutsDir);
+   
+      const layouts = layoutsToFilePaths(extractPartials(content), layoutsDir);
       const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html,hbs}`);
       const partialsGlob = config.partials.map(
         (x) => `${x}/**/*.{html,html,hbs}`
@@ -181,21 +205,22 @@ module.exports = new Transformer({
 
           // Lê o conteúdo de todos os arquivos de forma assíncrona
           const fileContents = await Promise.all(
-            filePaths.map(async (file) => {
+            filePaths.map(async (filePath) => {
               const fullPath = path.join(projectRoot, file);
               const content = await fsp.readFile(fullPath, "utf-8");
-              return { file, content, glob: glob.replace(/\/[*?{[].*$/, "") + "/" };
+              return { filePath, content, glob: glob.replace(/\/[*?{[].*$/, "") + "/" };
             })
           );
           return fileContents.flat();
         })
       );
       registers = registers.flat();
+
       const newDelimiterOpen = "![[[";
       const registerPartials = await Promise.all(
         registers.map(async (register) => {
-          const { file, glob, content } = register;
-          const filePath = file;
+          const { filePath, glob, content } = register;
+        
           const relativePath = path
             .relative(projectRoot, filePath)
             .replace(/\\/g, "/"); // Converte para formato Unix
@@ -207,6 +232,7 @@ module.exports = new Transformer({
       );
 
       wax.partials(Object.assign({}, ...registerPartials));
+
       const depPatterns = [
         config.helpers.map((x) => `${x}/**/*.js`),
         config.data.map((x) => `${x}/**/*.{json,js}`),
@@ -240,6 +266,9 @@ module.exports = new Transformer({
       let result = wax.compile(content.replace(/{{(?!>)/g, newDelimiterOpen))(
         data
       );
+      const deps = await allFilePaths(result, {layoutsDir, partialsDir});
+      console.log(deps);
+      console.log(deps);
       content = result.replace(
         new RegExp(
           newDelimiterOpen.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
@@ -297,7 +326,7 @@ module.exports = new Transformer({
       }
 
       if (!isJsModule) {
-        await asset.setCode(content);
+        asset.setCode(content);
         return [asset];
       }
       if (isProduction) {
@@ -333,7 +362,7 @@ module.exports = new Transformer({
         export {tpl, sources};`);
       asset.type = "js";
     } catch (err) {
-      console.log("--parcel-transformer-hbs: Error compiling template.", err);
+      console.error("--parcel-transformer-hbs: Error compiling template.", err);
       throw new Error(
         "--parcel-transformer-hbs: Error compiling template.",
         err
