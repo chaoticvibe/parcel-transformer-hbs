@@ -175,10 +175,23 @@ module.exports = new Transformer({
       const partialsGlob = config.partials.map(
         (x) => `${x}/**/*.{html,html,hbs}`
       );
-      const [partialsFiles, layoutsFiles] = await Promise.all[fastGlob(...partialsGlob), fastGlob(...layoutsGlob)];
-      console.log("layoutsFiles: ", layoutsFiles);
-      console.log("partialsFiles: ", partialsFiles);
-      console.log("tripppp");
+      const allRegisters = [...layoutsGlob, ...partialsGlob];
+      const registers = await Promise.all(allRegisters.map( glob=>{
+        return fastGlob(glob, {cwd: projectRoot})
+      })).flat();
+      console.log(registers);
+      const registerPartials = await Promise.all(
+        registers.map(async (filePath) => {
+          const content = await fsp.readFile(filePath, "utf-8");
+          const relativePath = path.relative(dir, filePath).replace(/\\/g, "/"); // Converte para formato Unix
+          const name = relativePath.replace(path.extname(relativePath), ""); // Remove a extensão
+          const partial = {};
+          partial[name] = content;
+          return partial;
+        })
+      );
+
+      wax.partials(...registerPartials);
       const depPatterns = [
         config.helpers.map((x) => `${x}/**/*.js`),
         config.data.map((x) => `${x}/**/*.{json,js}`),
