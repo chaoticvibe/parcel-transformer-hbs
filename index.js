@@ -191,18 +191,17 @@ module.exports = new Transformer({
         })
       );
       registers = registers.flat();
+      const newDelimiterOpen = "![[[";
       const registerPartials = await Promise.all(
         registers.map(async (register) => {
           const { file, glob, content } = register;
-          console.log(glob);
           const filePath = file;
           const relativePath = path
             .relative(projectRoot, filePath)
             .replace(/\\/g, "/"); // Converte para formato Unix
           const name = relativePath.replace(path.extname(relativePath), "").replace(glob, ""); // Remove a extensão
-          console.log(name);
           const partial = {};
-          partial[name] = content;
+          partial[name] = content.replace(/{{(?!>)/g, newDelimiterOpen)
           return partial;
         })
       );
@@ -238,7 +237,6 @@ module.exports = new Transformer({
           NODE_ENV: process.env.NODE_ENV,
         }
       );
-      const newDelimiterOpen = "![[[";
       let result = wax.compile(content.replace(/{{(?!>)/g, newDelimiterOpen))(
         data
       );
