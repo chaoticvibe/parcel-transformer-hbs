@@ -247,8 +247,6 @@ module.exports = new Transformer({
       // Achata o array de arrays de resultados
       const dependencies = toArray(depFileArray).flat();
 
-      dependencies.push(...layouts);
-      dependencies.push(...partials);
 
       for (const dep of dependencies) {
         asset.invalidateOnFileChange(dep);
@@ -266,7 +264,7 @@ module.exports = new Transformer({
       let result = wax.compile(content.replace(/{{(?!>)/g, newDelimiterOpen))(
         data
       );
-      const deps = await allFilePaths(result, {layoutsDir, partialsDir});
+      const deps = await allFilePaths(result, {layoutsDir, partialsDir}, registers);
       console.log(deps);
       console.log(deps);
       content = result.replace(
