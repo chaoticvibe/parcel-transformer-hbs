@@ -183,8 +183,9 @@ module.exports = new Transformer({
       const registerPartials = await Promise.all(
         registers.flat().map(async (filePath) => {
           const content = await fsp.readFile(filePath, "utf-8");
-          const relativePath = path.relative(dir, filePath).replace(/\\/g, "/"); // Converte para formato Unix
+          const relativePath = path.relative(projectRoot, filePath).replace(/\\/g, "/"); // Converte para formato Unix
           const name = relativePath.replace(path.extname(relativePath), ""); // Remove a extensão
+          console.log(name);
           const partial = {};
           partial[name] = content;
           return partial;
