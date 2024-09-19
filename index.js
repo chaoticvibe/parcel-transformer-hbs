@@ -96,8 +96,8 @@ function arraysEqual(arr1, arr2) {
 
   return arr1.every((value, index) => value === arr2[index]);
 }
-async function allFilePaths(content, paths, allExtracted = [], alreadyChecked = []) {
-  let { partialsDir, layoutsDir, allPartials } = paths;
+async function allFilePaths(content, paths, allPartials, allExtracted = [], alreadyChecked = []) {
+  let { partialsDir, layoutsDir } = paths;
 
   // Se já verificamos todos os arquivos, retornamos os que extraímos até agora
   if (alreadyChecked.length && allExtracted.length && arraysEqual(alreadyChecked, allExtracted)) {
@@ -125,7 +125,7 @@ async function allFilePaths(content, paths, allExtracted = [], alreadyChecked = 
         content = !content && await fs.exists(partialPath) ? await fsp.readFile(partialPath, 'utf8') : content;
       }catch(err){ 
       }
-      return !content ? allExtracted : await allFilePaths(content, { partialsDir, layoutsDir }, newPartials, alreadyChecked);
+      return !content ? allExtracted : await allFilePaths(content, { partialsDir, layoutsDir }, allPartials, newPartials, alreadyChecked);
   }));
 
   // Achata os arrays de caminhos retornados
