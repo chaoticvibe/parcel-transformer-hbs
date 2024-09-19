@@ -62,7 +62,7 @@ function mapPartialsToFilePaths(partials, dir) {
   }, {});
 }
 
-async function partialsToFilePaths(partials, paths, allPartials) {
+async function partialsToFilePaths(partials, paths, partialsFiles) {
   const {partialsDir, layoutsDir, alreadyChecked} = paths;
   if(!partials.length){
     return [];
@@ -76,12 +76,9 @@ async function partialsToFilePaths(partials, paths, allPartials) {
     if(alreadyChecked.includes(partialPath)){
       return partialPath;
     }
-    const file = allPartials.find((data)=>{return data.filePath === partialPath;})
-    const exists = file && file.content;
-    if(!exists){
-      return null; 
-    }
-      return null;
+    const file = partialsFiles.find((data)=>{return data.filePath === partialPath;})
+    const exists = file && file.filePath ? file.filePath : null;
+    return exists;
   }));
   allPartials = allPartials.filter(Boolean);
 
