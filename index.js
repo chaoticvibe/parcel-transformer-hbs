@@ -184,7 +184,7 @@ module.exports = new Transformer({
             filePaths.map(async (file) => {
               const fullPath = path.join(projectRoot, file);
               const content = await fsp.readFile(fullPath, "utf-8");
-              return { file, content, glob: glob.replace(/\/[*?{[].*$/, "") };
+              return { file, content, glob: glob.replace(/\/[*?{[].*$/, "") + "/" };
             })
           );
           return fileContents.flat();
