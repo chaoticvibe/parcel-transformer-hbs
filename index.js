@@ -175,7 +175,9 @@ module.exports = new Transformer({
       const partialsGlob = config.partials.map(
         (x) => `${x}/**/*.{html,html,hbs}`
       );
-      const [partialsFiles, layoutsFiles] = await Promise.all[fastGlob(...partialsGlob), fastGlob(...layoutsGlob)]
+      const [partialsFiles, layoutsFiles] = await Promise.all[fastGlob(...partialsGlob), fastGlob(...layoutsGlob)];
+      console.log("layoutsFiles: ", layoutsFiles);
+      console.log("partialsFiles: ", partialsFiles);
       const registerPartials = await Promise.all(
         [...partialsFiles, ...layoutsFiles].map(async (filePath) => {
           const content = await fsp.readFile(filePath, "utf-8");
