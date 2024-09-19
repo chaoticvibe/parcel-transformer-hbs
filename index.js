@@ -35,60 +35,67 @@ function toArray(value) {
   }
   return Array.isArray(value) ? value : [value];
 }
-function getFilteredFiles(files) {
-  return files.filter((file) => !/\.(hbs|handlebars)\.(html|htm)$/.test(file));
-}
 // Function to extract partials from a Handlebars template
-function extractPartials(templateContent) {
-  const partials = [];
-
-  // Define a regex pattern to find all partials in the template
-  const partialPattern = /{{>\s*([\w-]+)\s*}}/g;
+function extractPartials(content) {
+  const partialRegex = /{{>\s*([^}\s]+)\s*}}/g;
   let match;
-
-  while ((match = partialPattern.exec(templateContent)) !== null) {
-    partials.push(match[1]);
+  const partials = [];
+  while (match = partialRegex.exec(content)) {
+      partials.push(match[1]);
   }
-
   return partials;
 }
-
-// Function to map partial names to file paths
-function mapPartialsToFilePaths(partials, dir) {
+// Function to map partial names to file p
+// Função para mapear os nomes dos partials para os caminhos dos arquivos
+function mapPartialsToFilePaths(partials, baseDir) {
+  const dir = baseDir; // Obtém apenas o diretório, sem o nome do arquivo e extensão
   return partials.reduce((map, partial) => {
-    const partialPath = path.join(dir, `${partial}.html`);
+    const partialPath = path.join(dir, partial); 
     map[partial] = partialPath;
     return map;
   }, {});
 }
 
-async function partialsToFilePaths(partials, paths, partialsFiles) {
-  const {partialsDir, layoutsDir, alreadyChecked} = paths;
-  if(!partials.length){
-    return [];
-  }
-  let partialsMap = mapPartialsToFilePaths(partials, partialsDir);
-  let layoutsMap = mapPartialsToFilePaths(partials, layoutsDir);
-  let partialsPaths = Object.values(partialsMap);
-  let layoutsPaths = Object.values(layoutsMap);
-  let allPaths = [...partialsPaths, ...layoutsPaths];
-  let allPartials = await Promise.all(allPaths.map(async (partialPath, index)=> {
-    if(alreadyChecked.includes(partialPath)){
-      return partialPath;
-    }
-    const file = partialsFiles.find((data)=>{return data.filePath === partialPath;})
-    const exists = file && file.filePath ? file.filePath : null;
-    return exists;
-  }));
-  allPartials = allPartials.filter(Boolean);
+// Função para converter partials em caminhos de arquivos
+async function partialsToFilePaths(partials, paths, partialsFiles = {}, alreadyChecked = []) {
+  const { partialsDir, layoutsDir } = paths;
 
-  if (!allPartials.length) {
+  if (!partials.length) {
     return [];
   }
-  return allPartials;
-}
-function layoutsToFilePaths(partials, partialsDir) {
-  return partialsToFilePaths(partials, partialsDir);
+
+  if (!partialsDir && !layoutsDir) {
+    return [];
+  }
+  // Mapeia os nomes dos partials para seus caminhos
+  const partialsMap = partialsDir ? mapPartialsToFilePaths(partials, partialsDir) : {};
+  const layoutsMap = layoutsDir ? mapPartialsToFilePaths(partials, layoutsDir) : {};
+  // Junta os caminhos dos partials e layouts
+  const allPaths = [...Object.values(partialsMap), ...Object.values(layoutsMap)];
+
+  // Filtra e verifica os partials existentes
+  const allPartials = await Promise.all(
+    allPaths.map(async (partialPath) => {
+      const file = partialsFiles.find((data) => data.partial === partialPath);
+      if(file && alreadyChecked.includes(file.fullPath)){
+        return null;
+      }
+      return file ? file.fullPath : null; // Retorna o caminho apenas se existir
+    })
+  );
+
+  // Remove valores nulos/undefined (arquivos que não existem)
+  const filteredPartials = allPartials.filter(Boolean);
+
+  // Se não restam partials, retorna uma lista vazia
+  if (!filteredPartials.length) {
+    return [];
+  }
+
+  // Adiciona os partials recém-verificados à lista de já verificados
+  const newAlreadyChecked = [...alreadyChecked, ...filteredPartials];
+
+  return newAlreadyChecked;
 }
 function arraysEqual(arr1, arr2) {
   if (arr1.length !== arr2.length) {
@@ -97,9 +104,7 @@ function arraysEqual(arr1, arr2) {
 
   return arr1.every((value, index) => value === arr2[index]);
 }
-async function allFilePaths(content, paths, allPartials, allExtracted = [], alreadyChecked = []) {
-  let { partialsDir, layoutsDir } = paths;
-
+async function allFilePaths(content, paths, allPartials, allExtracted = [], alreadyChecked = []) {   
   // Se já verificamos todos os arquivos, retornamos os que extraímos até agora
   if (alreadyChecked.length && allExtracted.length && arraysEqual(alreadyChecked, allExtracted)) {
       return allExtracted;
@@ -111,9 +116,8 @@ async function allFilePaths(content, paths, allPartials, allExtracted = [], alre
   // Extrai novos partials deste conteúdo e transforma em caminhos completos
   let newPartials = await partialsToFilePaths(
       extractPartials(content),
-      { partialsDir, layoutsDir }, allPartials
+      paths, allPartials, alreadyChecked
   );
-
   // Filtra partials já verificados
   newPartials = newPartials.filter(partial => !alreadyChecked.includes(partial));
 
@@ -126,7 +130,7 @@ async function allFilePaths(content, paths, allPartials, allExtracted = [], alre
         content = !content && await fs.exists(partialPath) ? await fsp.readFile(partialPath, 'utf8') : content;
       }catch(err){ 
       }
-      return !content ? allExtracted : await allFilePaths(content, { partialsDir, layoutsDir }, allPartials, newPartials, alreadyChecked);
+      return !content ? allExtracted : await allFilePaths(content, paths, allPartials, newPartials, alreadyChecked);
   }));
 
   // Achata os arrays de caminhos retornados
@@ -189,7 +193,6 @@ module.exports = new Transformer({
       config.decorators.forEach((x) => wax.decorators(`${x}/**/*.js`));
 
    
-      const layouts = layoutsToFilePaths(extractPartials(content), layoutsDir);
       const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html,hbs}`);
       const partialsGlob = config.partials.map(
         (x) => `${x}/**/*.{html,html,hbs}`
@@ -205,7 +208,9 @@ module.exports = new Transformer({
             filePaths.map(async (filePath) => {
               const fullPath = path.join(projectRoot, filePath);
               const content = await fsp.readFile(fullPath, "utf-8");
-              return { filePath, content, glob: glob.replace(/\/[*?{[].*$/, "") + "/" };
+              const { dir, name } = path.parse(filePath); // 'name' é o nome do arquivo sem a extensão
+              const partial = path.join(projectRoot, dir, name); 
+              return { filePath, partial, fullPath, content, glob: glob.replace(/\/[*?{[].*$/, "") + "/" };
             })
           );
           return fileContents.flat();
@@ -243,8 +248,8 @@ module.exports = new Transformer({
 
       // Achata o array de arrays de resultados
       const dependencies = toArray(depFileArray).flat();
-
-
+      const deps = await allFilePaths(content, {layoutsDir, partialsDir}, registers);
+      dependencies.push(...deps);
       for (const dep of dependencies) {
         asset.invalidateOnFileChange(dep);
       }
@@ -258,13 +263,11 @@ module.exports = new Transformer({
           NODE_ENV: process.env.NODE_ENV,
         }
       );
-      const deps = await allFilePaths(content, {layoutsDir, partialsDir}, registers);
+      
 
       let result = wax.compile(content.replace(/{{(?!>)/g, newDelimiterOpen))(
         data
       );
-      console.log(deps);
-      console.log(deps);
       content = result.replace(
         new RegExp(
           newDelimiterOpen.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
