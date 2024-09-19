@@ -178,10 +178,10 @@ module.exports = new Transformer({
       const allRegisters = [...layoutsGlob, ...partialsGlob];
       const registers = await Promise.all(allRegisters.map( glob=>{
         return fastGlob(glob, {cwd: projectRoot})
-      })).flat();
+      }));
       console.log(registers);
       const registerPartials = await Promise.all(
-        registers.map(async (filePath) => {
+        registers.flat().map(async (filePath) => {
           const content = await fsp.readFile(filePath, "utf-8");
           const relativePath = path.relative(dir, filePath).replace(/\\/g, "/"); // Converte para formato Unix
           const name = relativePath.replace(path.extname(relativePath), ""); // Remove a extensão
