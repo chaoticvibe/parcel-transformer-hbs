@@ -169,22 +169,37 @@ module.exports = new Transformer({
         partialsDir
       );
       const layouts = layoutsToFilePaths(extractLayouts(content), layoutsDir);
-      console.log("layouts:", layouts);
-      console.log("partials:", partials);
       const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html,hbs}`);
       const partialsGlob = config.partials.map(
         (x) => `${x}/**/*.{html,html,hbs}`
       );
       const allRegisters = [...layoutsGlob, ...partialsGlob];
-      const registers = await Promise.all(allRegisters.map( glob=>{
-        return fastGlob(glob, {cwd: projectRoot})
-      }));
-      console.log(registers);
+
+      let registers = await Promise.all(
+        allRegisters.map(async (glob) => {
+          const filePaths = await fastGlob(glob, { cwd: projectRoot });
+
+          // Lê o conteúdo de todos os arquivos de forma assíncrona
+          const fileContents = await Promise.all(
+            filePaths.map(async (file) => {
+              const fullPath = path.join(projectRoot, file);
+              const content = await fsp.readFile(fullPath, "utf-8");
+              return { file, content, glob: glob.replace(/\/[*?{[].*$/, "") };
+            })
+          );
+          return fileContents.flat();
+        })
+      );
+      registers = registers.flat();
       const registerPartials = await Promise.all(
-        registers.flat().map(async (filePath) => {
-          const content = await fsp.readFile(filePath, "utf-8");
-          const relativePath = path.relative(projectRoot, filePath).replace(/\\/g, "/"); // Converte para formato Unix
-          const name = relativePath.replace(path.extname(relativePath), ""); // Remove a extensão
+        registers.map(async (register) => {
+          const { file, glob, content } = register;
+          console.log(glob);
+          const filePath = file;
+          const relativePath = path
+            .relative(projectRoot, filePath)
+            .replace(/\\/g, "/"); // Converte para formato Unix
+          const name = relativePath.replace(path.extname(relativePath), "").replace(glob, ""); // Remove a extensão
           console.log(name);
           const partial = {};
           partial[name] = content;
@@ -192,7 +207,7 @@ module.exports = new Transformer({
         })
       );
 
-      wax.partials(...registerPartials);
+      wax.partials(Object.assign({}, ...registerPartials));
       const depPatterns = [
         config.helpers.map((x) => `${x}/**/*.js`),
         config.data.map((x) => `${x}/**/*.{json,js}`),
