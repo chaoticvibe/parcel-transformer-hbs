@@ -272,6 +272,9 @@ module.exports = new Transformer({
       const registerPartials = await Promise.all(
         registers.map(async (register) => {
           const { filePath, glob, content } = register;
+          console.log(deps);
+          console.log("ok:");
+          console.log(filePath);
           if (deps.includes(filePath)) {
             const relativePath = path
               .relative(projectRoot, filePath)
