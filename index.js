@@ -40,8 +40,8 @@ function extractPartials(content) {
   const partialRegex = /{{>\s*([^}\s]+)\s*}}/g;
   let match;
   const partials = [];
-  while (match = partialRegex.exec(content)) {
-      partials.push(match[1]);
+  while ((match = partialRegex.exec(content))) {
+    partials.push(match[1]);
   }
   return partials;
 }
@@ -50,14 +50,19 @@ function extractPartials(content) {
 function mapPartialsToFilePaths(partials, baseDir) {
   const dir = baseDir; // Obtém apenas o diretório, sem o nome do arquivo e extensão
   return partials.reduce((map, partial) => {
-    const partialPath = path.join(dir, partial); 
+    const partialPath = path.join(dir, partial);
     map[partial] = partialPath;
     return map;
   }, {});
 }
 
 // Função para converter partials em caminhos de arquivos
-async function partialsToFilePaths(partials, paths, partialsFiles = {}, alreadyChecked = []) {
+async function partialsToFilePaths(
+  partials,
+  paths,
+  partialsFiles = {},
+  alreadyChecked = []
+) {
   const { partialsDir, layoutsDir } = paths;
 
   if (!partials.length) {
@@ -68,16 +73,23 @@ async function partialsToFilePaths(partials, paths, partialsFiles = {}, alreadyC
     return [];
   }
   // Mapeia os nomes dos partials para seus caminhos
-  const partialsMap = partialsDir ? mapPartialsToFilePaths(partials, partialsDir) : {};
-  const layoutsMap = layoutsDir ? mapPartialsToFilePaths(partials, layoutsDir) : {};
+  const partialsMap = partialsDir
+    ? mapPartialsToFilePaths(partials, partialsDir)
+    : {};
+  const layoutsMap = layoutsDir
+    ? mapPartialsToFilePaths(partials, layoutsDir)
+    : {};
   // Junta os caminhos dos partials e layouts
-  const allPaths = [...Object.values(partialsMap), ...Object.values(layoutsMap)];
+  const allPaths = [
+    ...Object.values(partialsMap),
+    ...Object.values(layoutsMap),
+  ];
 
   // Filtra e verifica os partials existentes
   const allPartials = await Promise.all(
     allPaths.map(async (partialPath) => {
       const file = partialsFiles.find((data) => data.partial === partialPath);
-      if(file && alreadyChecked.includes(file.fullPath)){
+      if (file && alreadyChecked.includes(file.fullPath)) {
         return null;
       }
       return file ? file.fullPath : null; // Retorna o caminho apenas se existir
@@ -104,10 +116,20 @@ function arraysEqual(arr1, arr2) {
 
   return arr1.every((value, index) => value === arr2[index]);
 }
-async function allFilePaths(content, paths, allPartials, allExtracted = [], alreadyChecked = []) {   
+async function allFilePaths(
+  content,
+  paths,
+  allPartials,
+  allExtracted = [],
+  alreadyChecked = []
+) {
   // Se já verificamos todos os arquivos, retornamos os que extraímos até agora
-  if (alreadyChecked.length && allExtracted.length && arraysEqual(alreadyChecked, allExtracted)) {
-      return allExtracted;
+  if (
+    alreadyChecked.length &&
+    allExtracted.length &&
+    arraysEqual(alreadyChecked, allExtracted)
+  ) {
+    return allExtracted;
   }
 
   // Marcamos os extraídos atuais como já verificados
@@ -115,23 +137,41 @@ async function allFilePaths(content, paths, allPartials, allExtracted = [], alre
 
   // Extrai novos partials deste conteúdo e transforma em caminhos completos
   let newPartials = await partialsToFilePaths(
-      extractPartials(content),
-      paths, allPartials, alreadyChecked
+    extractPartials(content),
+    paths,
+    allPartials,
+    alreadyChecked
   );
   // Filtra partials já verificados
-  newPartials = newPartials.filter(partial => !alreadyChecked.includes(partial));
+  newPartials = newPartials.filter(
+    (partial) => !alreadyChecked.includes(partial)
+  );
 
   // Lê o conteúdo de cada partial e chama a função recursivamente
-  let allPaths = await Promise.all(newPartials.map(async (partialPath) => {
-      const file = allPartials.find((data)=>{ return data.filePath === partialPath});
-    
+  let allPaths = await Promise.all(
+    newPartials.map(async (partialPath) => {
+      const file = allPartials.find((data) => {
+        return data.filePath === partialPath;
+      });
+
       let content = file && file.content ? file.content : null;
-      try{
-        content = !content && await fs.exists(partialPath) ? await fsp.readFile(partialPath, 'utf8') : content;
-      }catch(err){ 
-      }
-      return !content ? allExtracted : await allFilePaths(content, paths, allPartials, newPartials, alreadyChecked);
-  }));
+      try {
+        content =
+          !content && (await fs.exists(partialPath))
+            ? await fsp.readFile(partialPath, "utf8")
+            : content;
+      } catch (err) {}
+      return !content
+        ? allExtracted
+        : await allFilePaths(
+            content,
+            paths,
+            allPartials,
+            newPartials,
+            alreadyChecked
+          );
+    })
+  );
 
   // Achata os arrays de caminhos retornados
   return [...new Set(allExtracted.concat(...allPaths))];
@@ -192,7 +232,6 @@ module.exports = new Transformer({
       config.data.forEach((x) => wax.data(`${x}/**/*.{json,js}`));
       config.decorators.forEach((x) => wax.decorators(`${x}/**/*.js`));
 
-   
       const layoutsGlob = config.layouts.map((x) => `${x}/**/*.{htm,html,hbs}`);
       const partialsGlob = config.partials.map(
         (x) => `${x}/**/*.{html,html,hbs}`
@@ -209,31 +248,46 @@ module.exports = new Transformer({
               const fullPath = path.join(projectRoot, filePath);
               const content = await fsp.readFile(fullPath, "utf-8");
               const { dir, name } = path.parse(filePath); // 'name' é o nome do arquivo sem a extensão
-              const partial = path.join(projectRoot, dir, name); 
-              return { filePath, partial, fullPath, content, glob: glob.replace(/\/[*?{[].*$/, "") + "/" };
+              const partial = path.join(projectRoot, dir, name);
+              return {
+                filePath,
+                partial,
+                fullPath,
+                content,
+                glob: glob.replace(/\/[*?{[].*$/, "") + "/",
+              };
             })
           );
           return fileContents.flat();
         })
       );
       registers = registers.flat();
+      const deps = await allFilePaths(
+        content,
+        { layoutsDir, partialsDir },
+        registers
+      );
 
       const newDelimiterOpen = "![[[";
       const registerPartials = await Promise.all(
         registers.map(async (register) => {
-          const { filePath, glob, content } = register;
-        
-          const relativePath = path
-            .relative(projectRoot, filePath)
-            .replace(/\\/g, "/"); // Converte para formato Unix
-          const name = relativePath.replace(path.extname(relativePath), "").replace(glob, ""); // Remove a extensão
-          const partial = {};
-          partial[name] = content.replace(/{{(?!>)/g, newDelimiterOpen)
-          return partial;
+          if (deps.includes(filePath)) {
+            const { filePath, glob, content } = register;
+
+            const relativePath = path
+              .relative(projectRoot, filePath)
+              .replace(/\\/g, "/"); // Converte para formato Unix
+            const name = relativePath
+              .replace(path.extname(relativePath), "")
+              .replace(glob, ""); // Remove a extensão
+            const partial = {};
+            partial[name] = content.replace(/{{(?!>)/g, newDelimiterOpen);
+            return partial;
+          }else{return null;}
         })
       );
 
-      wax.partials(Object.assign({}, ...registerPartials));
+      wax.partials(Object.assign({}, ...registerPartials.filter(Boolean)));
 
       const depPatterns = [
         config.helpers.map((x) => `${x}/**/*.js`),
@@ -248,7 +302,7 @@ module.exports = new Transformer({
 
       // Achata o array de arrays de resultados
       const dependencies = toArray(depFileArray).flat();
-      const deps = await allFilePaths(content, {layoutsDir, partialsDir}, registers);
+
       dependencies.push(...deps);
       for (const dep of dependencies) {
         asset.invalidateOnFileChange(dep);
@@ -263,7 +317,6 @@ module.exports = new Transformer({
           NODE_ENV: process.env.NODE_ENV,
         }
       );
-      
 
       let result = wax.compile(content.replace(/{{(?!>)/g, newDelimiterOpen))(
         data
