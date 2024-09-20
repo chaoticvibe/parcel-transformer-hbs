@@ -267,15 +267,14 @@ module.exports = new Transformer({
         { layoutsDir, partialsDir },
         registers
       );
-
+      console.log(deps);
+      console.log("triole");
       const newDelimiterOpen = "![[[";
       const registerPartials = await Promise.all(
         registers.map(async (register) => {
-          const { filePath, glob, content } = register;
-          console.log(deps);
-          console.log("ok:");
-          console.log(filePath);
           if (deps.includes(filePath)) {
+            const { filePath, glob, content } = register;
+
             const relativePath = path
               .relative(projectRoot, filePath)
               .replace(/\\/g, "/"); // Converte para formato Unix
@@ -285,9 +284,7 @@ module.exports = new Transformer({
             const partial = {};
             partial[name] = content.replace(/{{(?!>)/g, newDelimiterOpen);
             return partial;
-          } else {
-            return null;
-          }
+          }else{return null;}
         })
       );
 
