@@ -270,7 +270,7 @@ module.exports = new Transformer({
       console.log(deps);
       console.log("triole");
       const newDelimiterOpen = "![[[";
-      const registerPartials = await Promise.all(
+      let registerPartials = await Promise.all(
         registers.map(async (register) => {
           if (deps.includes(filePath)) {
             const { filePath, glob, content } = register;
@@ -287,8 +287,10 @@ module.exports = new Transformer({
           }else{return null;}
         })
       );
-
-      wax.partials(Object.assign({}, ...registerPartials.filter(Boolean)));
+      registerPartials = registerPartials.filter(Boolean);
+      if(Object.keys(registerPartials).length){
+        wax.partials(Object.assign({}, ...registerPartials));
+      }
 
       const depPatterns = [
         config.helpers.map((x) => `${x}/**/*.js`),
