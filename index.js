@@ -267,14 +267,11 @@ module.exports = new Transformer({
         { layoutsDir, partialsDir },
         registers
       );
-      console.log(deps);
-      console.log("triole");
       const newDelimiterOpen = "![[[";
       let registerPartials = await Promise.all(
         registers.map(async (register) => {
-          if (deps.includes(filePath)) {
-            const { filePath, glob, content } = register;
-
+          const { filePath, glob, content } = register;
+          if (deps.includes(path.join(projectRoot, filePath))) {
             const relativePath = path
               .relative(projectRoot, filePath)
               .replace(/\\/g, "/"); // Converte para formato Unix
@@ -284,11 +281,13 @@ module.exports = new Transformer({
             const partial = {};
             partial[name] = content.replace(/{{(?!>)/g, newDelimiterOpen);
             return partial;
-          }else{return null;}
+          } else {
+            return null;
+          }
         })
       );
       registerPartials = registerPartials.filter(Boolean);
-      if(Object.keys(registerPartials).length){
+      if (Object.keys(registerPartials).length) {
         wax.partials(Object.assign({}, ...registerPartials));
       }
 
