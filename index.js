@@ -338,8 +338,16 @@ module.exports = new Transformer({
         contentSources = sources;
         content = html;
       }
-
-      if (isProduction) {
+      let isProd = isProduction;
+      if(isProduction){
+        const mayaConfigs = getMayaSettings(projectRoot);
+        const mayaConfig =
+          mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
+            ? mayaConfigs[0]
+            : {};
+         isProd = isProduction && !mayaConfig.disabled;
+      }
+      if (isProd) {
         const mayaConfigs = getMayaSettings(projectRoot);
         const mayaConfig =
           mayaConfigs && Array.isArray(mayaConfigs) && mayaConfigs[0]
@@ -383,7 +391,7 @@ module.exports = new Transformer({
         asset.setCode(content);
         return [asset];
       }
-      if (isProduction) {
+      if (isProd) {
         content = minify(content, {
           continueOnParseError: true,
           collapseWhitespace: true,
