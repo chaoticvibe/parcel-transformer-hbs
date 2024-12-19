@@ -209,9 +209,10 @@ module.exports = new Transformer({
     const projectRoot = findProjectRoot(null, options);
     try {
       const wax = handlebarsWax(Handlebars, { cwd: projectRoot });
-      wax.helpers(handlebarsHelpers);
+
       wax.helpers(handlebarsLayouts);
 
+      handlebarsHelpers.registerHelpers(wax);
       const partialsDir = path.join(
         projectRoot,
         String(config.partials ? config.partials : "src/views/partials/")
