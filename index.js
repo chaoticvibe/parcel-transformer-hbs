@@ -305,7 +305,7 @@ module.exports = new Transformer({
       );
 
       // Achata o array de arrays de resultados
-      const dependencies = toArray(depFileArray).flat();
+      const dependencies = toArray(depFileArray).flat(Infinity);
 
       dependencies.push(...deps);
       for (const dep of dependencies) {
