@@ -6,6 +6,7 @@ const fsp = fs.promises;
 const { Transformer } = require("@parcel/plugin");
 const Handlebars = require("handlebars");
 const handlebarsWax = require("handlebars-wax");
+const H = require("just-handlebars-helpers");
 const handlebarsLayouts = require("handlebars-layouts");
 const fastGlob = require("fast-glob");
 const addDep = require("./addDep");
@@ -14,7 +15,7 @@ const {
   findProjectRoot,
   htmlObfuscateClasses,
 } = require("./utils");
-const justHandlebarsHelpers = require("just-handlebars-helpers/index.js");
+
 const isProduction = process.env.NODE_ENV === "production";
 // Configuração padrão de diretórios Handlebars
 const defaultConfig = {
@@ -208,10 +209,11 @@ module.exports = new Transformer({
     let content = await asset.getCode();
     const projectRoot = findProjectRoot(null, options);
     try {
+      H.registerHelpers(Handlebars);
       const wax = handlebarsWax(Handlebars, { cwd: projectRoot });
 
       wax.helpers(handlebarsLayouts);
-      justHandlebarsHelpers(wax);
+   
       const partialsDir = path.join(
         projectRoot,
         String(config.partials ? config.partials : "src/views/partials/")
