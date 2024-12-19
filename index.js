@@ -7,7 +7,7 @@ const { Transformer } = require("@parcel/plugin");
 const Handlebars = require("handlebars");
 const handlebarsWax = require("handlebars-wax");
 const handlebarsLayouts = require("handlebars-layouts");
-const handlebarsHelpers = require("handlebars-helpers");
+const handlebarsHelpers = require("just-handlebars-helpers");
 const fastGlob = require("fast-glob");
 const addDep = require("./addDep");
 const {
